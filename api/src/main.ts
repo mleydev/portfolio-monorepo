@@ -51,14 +51,22 @@ async function bootstrap() {
   );
 
   // Swagger API documentation
-  const swaggerConfig = new DocumentBuilder()
+  const config = new DocumentBuilder()
     .setTitle('Portfolio API')
-    .setDescription('API documentation for the portfolio backend')
-    .setVersion('1.0.0')
-    .addBearerAuth()
+    .setDescription('Portfolio backend API')
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
     .build();
 
-  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  const swaggerDocument = SwaggerModule.createDocument(app, config);
 
   SwaggerModule.setup('api/docs', app, swaggerDocument);
 

@@ -18,7 +18,6 @@ enum MediaType {
   VIDEO
   DOCUMENT
 }
-
 enum MessageStatus {
   NEW
   READ
