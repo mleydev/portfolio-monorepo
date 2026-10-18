@@ -1,11 +1,18 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ProjectsService {
-  findAll() {
-    return {
-      message: 'Projects API is working',
-      data: [],
-    };
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findAll() {
+    return this.prisma.project.findMany({
+      include: {
+        translations: true,
+      },
+      orderBy: {
+        sortOrder: 'asc',
+      },
+    });
   }
 }

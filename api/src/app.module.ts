@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
+import { NavigationModule } from './navigation/navigation.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -10,6 +11,7 @@ import { ProjectsModule } from './projects/projects.module';
     }),
     PrismaModule,
     ProjectsModule,
+    NavigationModule,
   ],
 })
 export class AppModule {}

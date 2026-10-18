@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Project {
+  id            String                @id @default(cuid())
+  slug          String                @unique
+  coverImage    String?
+  demoUrl       String?
+  repositoryUrl String?
+  technologies  String[]              @default([])
+  featured      Boolean               @default(false)
+  published     Boolean               @default(false)
+  sortOrder     Int                   @default(0)
+
+  translations  ProjectTranslation[]
+
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([published, sortOrder])
+}
+
+model ProjectTranslation {
+  id          String   @id @default(cuid())
+  language    String
+  title       String
+  description String
+  content     String?
+
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([projectId, language])
+  @@index([language])
+}
