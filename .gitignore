@@ -1,0 +1,22 @@
+# Node Dependencies
+node_modules/
+.pnpm-store/
+
+# Build Outputs
+dist/
+build/
+.next/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# IDE & OS Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Prisma Artifacts
+/backend/prisma/migrations/
