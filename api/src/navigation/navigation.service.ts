@@ -234,31 +234,47 @@ export class NavigationService {
       // Verify that the menu exists.
       const menu = await tx.navigationMenu.findUnique({
         where: { key: menuKey },
-        select: { id: true },
+        select: {
+          id: true,
+          items: {
+            select: { key: true },
+          },
+        },
       });
 
       if (!menu) {
         throw new NotFoundException('Navigation menu not found.');
       }
 
-      const itemKeys = dto.items.map((item) => item.key);
+      // Require every menu item to be included exactly once.
+      const requestedKeys = dto.items.map((item) => item.key);
+      const existingKeys = menu.items.map((item) => item.key);
 
-      // Ensure every requested item belongs to this menu.
-      const existingItems = await tx.navigationItem.findMany({
-        where: {
-          menuId: menu.id,
-          key: { in: itemKeys },
-        },
-        select: { key: true },
-      });
-
-      if (existingItems.length !== itemKeys.length) {
-        throw new NotFoundException(
-          'One or more navigation items were not found in this menu.',
+      if (
+        requestedKeys.length !== existingKeys.length ||
+        existingKeys.some((key) => !requestedKeys.includes(key))
+      ) {
+        throw new ConflictException(
+          'All navigation items must be included exactly once.',
         );
       }
 
-      // Apply the new order atomically.
+      // Require unique, consecutive positions starting at 1.
+      const sortOrders = dto.items
+        .map((item) => item.sortOrder)
+        .sort((a, b) => a - b);
+
+      const hasValidOrder = sortOrders.every(
+        (sortOrder, index) => sortOrder === index + 1,
+      );
+
+      if (!hasValidOrder) {
+        throw new ConflictException(
+          'Sort orders must be unique consecutive integers starting at 1.',
+        );
+      }
+
+      // Apply all changes in one transaction.
       for (const item of dto.items) {
         await tx.navigationItem.update({
           where: {
@@ -267,14 +283,19 @@ export class NavigationService {
               key: item.key,
             },
           },
-          data: { sortOrder: item.sortOrder },
+          data: {
+            sortOrder: item.sortOrder,
+          },
         });
       }
 
+      // Return the updated items in their new order.
       return tx.navigationItem.findMany({
         where: { menuId: menu.id },
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-        include: { translations: true },
+        include: {
+          translations: true,
+        },
       });
     });
   }

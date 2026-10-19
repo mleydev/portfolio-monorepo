@@ -24,8 +24,8 @@ export class NavigationController {
   constructor(private readonly navigationService: NavigationService) {}
 
   // Add this decorator above each protected endpoint.
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard)
+  // @ApiBearerAuth('JWT-auth')
+  // @UseGuards(JwtAuthGuard)
   @Get()
   findPublicMenu(@Query() query: QueryNavigationDto) {
     return this.navigationService.findPublicMenu(query.key, query.lang);
