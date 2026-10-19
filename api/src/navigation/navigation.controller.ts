@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { CreateNavigationMenuDto } from './dto/create-navigation-menu.dto';
 import { UpdateNavigationMenuDto } from './dto/update-navigation-menu.dto';
+import { UpdateNavigationItemDto } from './dto/update-navigation-item.dto';
 
 @Controller('navigation')
 export class NavigationController {
@@ -64,5 +65,16 @@ export class NavigationController {
   @Delete('admin/:key')
   deleteMenu(@Param('key') key: string) {
     return this.navigationService.deleteMenu(key);
+  }
+
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
+  @Patch('admin/:menuKey/items/:itemKey')
+  updateItem(
+    @Param('menuKey') menuKey: string,
+    @Param('itemKey') itemKey: string,
+    @Body() dto: UpdateNavigationItemDto,
+  ) {
+    return this.navigationService.updateItem(menuKey, itemKey, dto);
   }
 }

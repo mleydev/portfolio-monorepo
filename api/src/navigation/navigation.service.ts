@@ -8,6 +8,7 @@ import {
 import { CreateNavigationItemDto } from './dto/create-navigation-item.dto';
 import { CreateNavigationMenuDto } from './dto/create-navigation-menu.dto';
 import { UpdateNavigationMenuDto } from './dto/update-navigation-menu.dto';
+import { UpdateNavigationItemDto } from './dto/update-navigation-item.dto';
 
 @Injectable()
 export class NavigationService {
@@ -144,6 +145,35 @@ export class NavigationService {
     // Delete the menu only after confirming it exists.
     return this.prisma.navigationMenu.delete({
       where: { key },
+    });
+  }
+
+  async updateItem(
+    menuKey: string,
+    itemKey: string,
+    dto: UpdateNavigationItemDto,
+  ) {
+    const item = await this.prisma.navigationItem.findFirst({
+      where: {
+        key: itemKey,
+        menu: { key: menuKey },
+      },
+      select: { id: true },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Navigation item not found.');
+    }
+
+    // Update only the provided item fields.
+    return this.prisma.navigationItem.update({
+      where: { id: item.id },
+      data: {
+        href: dto.href,
+        external: dto.external,
+        enabled: dto.enabled,
+        sortOrder: dto.sortOrder,
+      },
     });
   }
 }
