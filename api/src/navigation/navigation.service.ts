@@ -9,6 +9,7 @@ import { CreateNavigationItemDto } from './dto/create-navigation-item.dto';
 import { CreateNavigationMenuDto } from './dto/create-navigation-menu.dto';
 import { UpdateNavigationMenuDto } from './dto/update-navigation-menu.dto';
 import { UpdateNavigationItemDto } from './dto/update-navigation-item.dto';
+import { ReorderNavigationItemsDto } from './dto/reorder-navigation-items.dto';
 
 @Injectable()
 export class NavigationService {
@@ -153,6 +154,63 @@ export class NavigationService {
     itemKey: string,
     dto: UpdateNavigationItemDto,
   ) {
+    return this.prisma.$transaction(async (tx) => {
+      // Find the item within its parent menu.
+      const item = await tx.navigationItem.findFirst({
+        where: {
+          key: itemKey,
+          menu: { key: menuKey },
+        },
+        select: { id: true },
+      });
+
+      if (!item) {
+        throw new NotFoundException('Navigation item not found.');
+      }
+
+      // Update only the fields provided by the client.
+      await tx.navigationItem.update({
+        where: { id: item.id },
+        data: {
+          href: dto.href,
+          external: dto.external,
+          enabled: dto.enabled,
+          sortOrder: dto.sortOrder,
+        },
+      });
+
+      // Upsert translations by item and language.
+      if (dto.translations?.length) {
+        for (const translation of dto.translations) {
+          await tx.navigationItemTranslation.upsert({
+            where: {
+              itemId_language: {
+                itemId: item.id,
+                language: translation.language,
+              },
+            },
+            create: {
+              itemId: item.id,
+              language: translation.language,
+              label: translation.label,
+            },
+            update: {
+              label: translation.label,
+            },
+          });
+        }
+      }
+
+      // Return the updated item with its translations.
+      return tx.navigationItem.findUnique({
+        where: { id: item.id },
+        include: { translations: true },
+      });
+    });
+  }
+
+  async deleteItem(menuKey: string, itemKey: string) {
+    // Find the item within its parent menu.
     const item = await this.prisma.navigationItem.findFirst({
       where: {
         key: itemKey,
@@ -165,15 +223,59 @@ export class NavigationService {
       throw new NotFoundException('Navigation item not found.');
     }
 
-    // Update only the provided item fields.
-    return this.prisma.navigationItem.update({
+    // Delete the item and its related translations.
+    return this.prisma.navigationItem.delete({
       where: { id: item.id },
-      data: {
-        href: dto.href,
-        external: dto.external,
-        enabled: dto.enabled,
-        sortOrder: dto.sortOrder,
-      },
+    });
+  }
+
+  async reorderItems(menuKey: string, dto: ReorderNavigationItemsDto) {
+    return this.prisma.$transaction(async (tx) => {
+      // Verify that the menu exists.
+      const menu = await tx.navigationMenu.findUnique({
+        where: { key: menuKey },
+        select: { id: true },
+      });
+
+      if (!menu) {
+        throw new NotFoundException('Navigation menu not found.');
+      }
+
+      const itemKeys = dto.items.map((item) => item.key);
+
+      // Ensure every requested item belongs to this menu.
+      const existingItems = await tx.navigationItem.findMany({
+        where: {
+          menuId: menu.id,
+          key: { in: itemKeys },
+        },
+        select: { key: true },
+      });
+
+      if (existingItems.length !== itemKeys.length) {
+        throw new NotFoundException(
+          'One or more navigation items were not found in this menu.',
+        );
+      }
+
+      // Apply the new order atomically.
+      for (const item of dto.items) {
+        await tx.navigationItem.update({
+          where: {
+            menuId_key: {
+              menuId: menu.id,
+              key: item.key,
+            },
+          },
+          data: { sortOrder: item.sortOrder },
+        });
+      }
+
+      return tx.navigationItem.findMany({
+        where: { menuId: menu.id },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        include: { translations: true },
+      });
     });
   }
 }
