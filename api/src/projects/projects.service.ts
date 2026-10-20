@@ -30,14 +30,20 @@ export class ProjectsService {
 
   async findAll(query: QueryProjectsDto) {
     const { lang, page, limit } = query;
-
     const skip = (page - 1) * limit;
+
+    const where: Prisma.ProjectWhereInput = {
+      published: true,
+      translations: {
+        some: {
+          language: lang as Language,
+        },
+      },
+    };
 
     const [projects, total] = await this.prisma.$transaction([
       this.prisma.project.findMany({
-        where: {
-          published: true,
-        },
+        where,
         include: {
           translations: {
             where: {
@@ -45,21 +51,13 @@ export class ProjectsService {
             },
           },
         },
-        orderBy: [
-          {
-            sortOrder: 'asc',
-          },
-          {
-            publishedAt: 'desc',
-          },
-        ],
+        orderBy: [{ sortOrder: 'asc' }, { publishedAt: 'desc' }],
         skip,
         take: limit,
       }),
+
       this.prisma.project.count({
-        where: {
-          published: true,
-        },
+        where,
       }),
     ]);
 
@@ -72,6 +70,35 @@ export class ProjectsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async findOneBySlug(slug: string, lang: string) {
+    const project = await this.prisma.project.findFirst({
+      where: {
+        slug,
+        published: true,
+        translations: {
+          some: {
+            language: lang as Language,
+          },
+        },
+      },
+      include: {
+        translations: {
+          where: {
+            language: lang as Language,
+          },
+        },
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException(
+        'Project not found for the requested language.',
+      );
+    }
+
+    return project;
   }
 
   async findAllAdmin() {
