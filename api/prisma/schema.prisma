@@ -34,6 +34,7 @@ model Project {
   technologies  String[]              @default([])
   featured      Boolean               @default(false)
   published     Boolean               @default(false)
+  publishedAt   DateTime?
   sortOrder     Int                   @default(0)
   translations  ProjectTranslation[]
   createdAt     DateTime              @default(now())
@@ -43,15 +44,19 @@ model Project {
 }
 
 model ProjectTranslation {
-  id          String   @id @default(cuid())
-  language    Language
-  title       String
-  description String
-  content     String?
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  language        Language
+  title           String
+  summary         String?  @db.Text
+  description     String   @db.Text
+  content         String?  @db.Text
+  role            String?
+  metaTitle       String?
+  metaDescription String?  @db.Text
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@unique([projectId, language])
   @@index([language])
@@ -273,3 +278,41 @@ model Message {
 
   @@index([status, createdAt])
 }
+
+
+enum CEFRLevel {
+  A1
+  A2
+  B1
+  B2
+  C1
+  C2
+  NATIVE
+}
+
+model LanguageSkill {
+  id           String                       @id @default(cuid())
+  name         String
+  level        CEFRLevel
+  proficiency  Int                          @default(0)
+  enabled      Boolean                      @default(true)
+  sortOrder    Int                          @default(0)
+  translations LanguageSkillTranslation[]
+  createdAt    DateTime                     @default(now())
+  updatedAt    DateTime                     @updatedAt
+
+  @@index([enabled, sortOrder])
+}
+
+
+model LanguageSkillTranslation {
+  id              String        @id @default(cuid())
+  languageSkillId String
+  languageSkill   LanguageSkill @relation(fields: [languageSkillId], references: [id], onDelete: Cascade)
+  language        Language
+  title           String
+  description     String?
+
+  @@unique([languageSkillId, language])
+}
+
