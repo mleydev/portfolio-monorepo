@@ -9,6 +9,7 @@ import { SkillsModule } from './skills/skills.module';
 import { LanguageSkillsModule } from './language-skills/language-skills.module';
 import { ExperienceModule } from './experience/experience.module';
 import { BlogModule } from './blog/blog.module';
+import { SiteManagementModule } from './site-management/site-management.module';
 
 @Module({
   imports: [
@@ -16,16 +17,16 @@ import { BlogModule } from './blog/blog.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    AuthModule,
     PrismaModule,
     ProjectsModule,
     NavigationModule,
-    AuthModule,
     ProfileModule,
     SkillsModule,
     LanguageSkillsModule,
     ExperienceModule,
     BlogModule,
+    SiteManagementModule,
   ],
 })
 export class AppModule {}
-
