@@ -20,3 +20,7 @@ Thumbs.db
 
 # Prisma Artifacts
 /backend/prisma/migrations/
+
+# Uploaded media files
+/uploads/*
+!/uploads/.gitkeep
