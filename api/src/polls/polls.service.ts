@@ -1,5 +1,4 @@
-﻿
-import {
+﻿import {
   BadRequestException,
   ConflictException,
   Injectable,
@@ -35,9 +34,7 @@ export class PollsService {
     const languages = translations.map(({ language }) => language);
 
     if (new Set(languages).size !== languages.length) {
-      throw new BadRequestException(
-        `Duplicate languages found in ${field}.`,
-      );
+      throw new BadRequestException(`Duplicate languages found in ${field}.`);
     }
   }
 
@@ -60,9 +57,7 @@ export class PollsService {
     }
 
     if (startDate && endDate && endDate <= startDate) {
-      throw new BadRequestException(
-        'endsAt must be later than startsAt.',
-      );
+      throw new BadRequestException('endsAt must be later than startsAt.');
     }
   }
 
@@ -199,16 +194,10 @@ export class PollsService {
         status: PollStatus.PUBLISHED,
         AND: [
           {
-            OR: [
-              { startsAt: null },
-              { startsAt: { lte: now } },
-            ],
+            OR: [{ startsAt: null }, { startsAt: { lte: now } }],
           },
           {
-            OR: [
-              { endsAt: null },
-              { endsAt: { gte: now } },
-            ],
+            OR: [{ endsAt: null }, { endsAt: { gte: now } }],
           },
         ],
       },
@@ -290,15 +279,11 @@ export class PollsService {
     const optionIds = [...new Set(dto.optionIds)];
 
     if (optionIds.length !== dto.optionIds.length) {
-      throw new BadRequestException(
-        'Duplicate option IDs are not allowed.',
-      );
+      throw new BadRequestException('Duplicate option IDs are not allowed.');
     }
 
     if (optionIds.length === 0) {
-      throw new BadRequestException(
-        'At least one option must be selected.',
-      );
+      throw new BadRequestException('At least one option must be selected.');
     }
 
     const now = new Date();
@@ -311,16 +296,10 @@ export class PollsService {
           status: PollStatus.PUBLISHED,
           AND: [
             {
-              OR: [
-                { startsAt: null },
-                { startsAt: { lte: now } },
-              ],
+              OR: [{ startsAt: null }, { startsAt: { lte: now } }],
             },
             {
-              OR: [
-                { endsAt: null },
-                { endsAt: { gte: now } },
-              ],
+              OR: [{ endsAt: null }, { endsAt: { gte: now } }],
             },
           ],
         },
@@ -331,19 +310,12 @@ export class PollsService {
       });
 
       if (!poll) {
-        throw new NotFoundException(
-          'Poll not found or voting is closed.',
-        );
+        throw new NotFoundException('Poll not found or voting is closed.');
       }
 
       // Single-choice polls accept exactly one selected option.
-      if (
-        poll.type === PollType.SINGLE_CHOICE &&
-        optionIds.length !== 1
-      ) {
-        throw new BadRequestException(
-          'Select exactly one option.',
-        );
+      if (poll.type === PollType.SINGLE_CHOICE && optionIds.length !== 1) {
+        throw new BadRequestException('Select exactly one option.');
       }
 
       // Ensure that every submitted option belongs to this poll.
@@ -371,9 +343,7 @@ export class PollsService {
       });
 
       if (existingVote) {
-        throw new ConflictException(
-          'This voter has already voted.',
-        );
+        throw new ConflictException('This voter has already voted.');
       }
 
       // Insert all selected options as one transaction.
@@ -391,9 +361,7 @@ export class PollsService {
           error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === 'P2002'
         ) {
-          throw new ConflictException(
-            'A duplicate vote was detected.',
-          );
+          throw new ConflictException('A duplicate vote was detected.');
         }
 
         throw error;
@@ -446,9 +414,7 @@ export class PollsService {
     }
 
     if (!poll.showResults) {
-      throw new BadRequestException(
-        'Results are not publicly available.',
-      );
+      throw new BadRequestException('Results are not publicly available.');
     }
 
     // Sum the votes recorded against each option.
