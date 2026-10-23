@@ -1,26 +1,27 @@
-
 {
   "moduleFileExtensions": ["js", "json", "ts"],
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".*\\.e2e-spec\\.ts$",
+  "extensionsToTreatAsEsm": [".ts"],
   "transform": {
     "^.+\\.ts$": [
       "ts-jest",
       {
         "useESM": true,
+        "isolatedModules": true,
         "tsconfig": {
-          "module": "NodeNext",
-          "moduleResolution": "NodeNext",
+          "module": "ESNext",
+          "moduleResolution": "Bundler",
           "target": "ES2023",
           "esModuleInterop": true,
           "experimentalDecorators": true,
-          "emitDecoratorMetadata": true
+          "emitDecoratorMetadata": true,
+          "allowSyntheticDefaultImports": true
         }
       }
     ]
   },
-  "extensionsToTreatAsEsm": [".ts"],
   "moduleNameMapper": {
     "^generated/prisma/(.*)$": "<rootDir>/../generated/prisma/$1",
     "^(\\.{1,2}/.*)\\.js$": "$1"
