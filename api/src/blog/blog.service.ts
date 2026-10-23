@@ -1,5 +1,9 @@
-﻿import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '../../generated/prisma/client';
+﻿import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { MediaType, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBlogArticleDto } from './dto/create-blog-article.dto';
 import { UpdateBlogArticleDto } from './dto/update-blog-article.dto';
@@ -8,6 +12,28 @@ import { QueryBlogArticlesDto } from './dto/query-blog-articles.dto';
 @Injectable()
 export class BlogService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async validateCoverMedia(coverMediaId?: string | null) {
+    if (!coverMediaId) {
+      return;
+    }
+
+    const media = await this.prisma.media.findUnique({
+      where: { id: coverMediaId },
+      select: {
+        id: true,
+        type: true,
+      },
+    });
+
+    if (!media) {
+      throw new NotFoundException('Cover media not found.');
+    }
+
+    if (media.type !== MediaType.IMAGE) {
+      throw new BadRequestException('Blog cover must be an image.');
+    }
+  }
 
   private readonly articleInclude = {
     translations: true,
@@ -37,6 +63,8 @@ export class BlogService {
 
   async create(dto: CreateBlogArticleDto) {
     const { translations, categoryIds, tagIds, ...articleData } = dto;
+
+    await this.validateCoverMedia(articleData.coverMediaId);
 
     return this.prisma.blogArticle.create({
       data: {
@@ -86,6 +114,8 @@ export class BlogService {
     }
 
     const { translations, categoryIds, tagIds, ...articleData } = dto;
+
+    await this.validateCoverMedia(articleData.coverMediaId);
 
     return this.prisma.$transaction(async (tx) => {
       if (translations) {
@@ -321,4 +351,3 @@ export class BlogService {
     return article;
   }
 }
-

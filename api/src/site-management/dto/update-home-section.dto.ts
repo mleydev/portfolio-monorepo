@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
+  IsEnum,
   IsInt,
   IsObject,
   IsOptional,
@@ -13,9 +14,9 @@ import { Type } from 'class-transformer';
 import { Language } from '../../../generated/prisma/client';
 
 class HomeSectionTranslationDto {
-  @ApiPropertyOptional({ enum: Language })
-  @IsOptional()
-  language?: Language;
+  @ApiPropertyOptional({ enum: Language, required: true })
+  @IsEnum(Language)
+  language: Language;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -10,6 +10,7 @@ import { LanguageSkillsModule } from './language-skills/language-skills.module';
 import { ExperienceModule } from './experience/experience.module';
 import { BlogModule } from './blog/blog.module';
 import { SiteManagementModule } from './site-management/site-management.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { SiteManagementModule } from './site-management/site-management.module';
     ExperienceModule,
     BlogModule,
     SiteManagementModule,
+    MediaModule,
   ],
 })
 export class AppModule {}

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Language, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateHomeSectionDto } from './dto/update-home-section.dto';
@@ -9,6 +13,16 @@ import { UpsertSiteSettingDto } from './dto/upsert-site-setting.dto';
 @Injectable()
 export class SiteManagementService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private validateUniqueLanguages(translations: { language: Language }[]) {
+    const languages = translations.map((translation) => translation.language);
+
+    if (new Set(languages).size !== languages.length) {
+      throw new BadRequestException(
+        'Duplicate translation languages are not allowed.',
+      );
+    }
+  }
 
   async findAllSettingsAdmin() {
     return this.prisma.siteSettings.findMany({
@@ -108,6 +122,7 @@ export class SiteManagementService {
   }
 
   async createSection(dto: CreateHomeSectionDto) {
+    this.validateUniqueLanguages(dto.translations);
     return this.prisma.pageSection.create({
       data: {
         key: dto.key,
@@ -152,6 +167,10 @@ export class SiteManagementService {
 
     if (!section) {
       throw new NotFoundException('Page section not found.');
+    }
+
+    if (translations !== undefined) {
+      this.validateUniqueLanguages(translations);
     }
 
     return this.prisma.pageSection.update({
