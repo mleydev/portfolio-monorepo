@@ -6,17 +6,20 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
 enum Language {
   fa
   en
   tr
   ar
 }
+
 enum MediaType {
   IMAGE
   VIDEO
   DOCUMENT
 }
+
 enum MessageStatus {
   NEW
   READ
@@ -25,19 +28,19 @@ enum MessageStatus {
 }
 
 model Project {
-  id            String                @id @default(cuid())
-  slug          String                @unique
+  id            String               @id @default(cuid())
+  slug          String               @unique
   coverImage    String?
   demoUrl       String?
   repositoryUrl String?
-  technologies  String[]              @default([])
-  featured      Boolean               @default(false)
-  published     Boolean               @default(false)
+  technologies  String[]             @default([])
+  featured      Boolean              @default(false)
+  published     Boolean              @default(false)
   publishedAt   DateTime?
-  sortOrder     Int                   @default(0)
+  sortOrder     Int                  @default(0)
   translations  ProjectTranslation[]
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   @@index([published, sortOrder])
 }
@@ -74,13 +77,13 @@ model Profile {
 }
 
 model ProfileTranslation {
-  id          String   @id @default(cuid())
-  language    Language
-  fullName    String
-  role        String
-  bio         String   @db.Text
-  profileId   String
-  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  language  Language
+  fullName  String
+  role      String
+  bio       String   @db.Text
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, language])
 }
@@ -99,17 +102,17 @@ model NavigationMenu {
 }
 
 model NavigationItem {
-  id          String              @id @default(cuid())
-  menuId      String
-  menu        NavigationMenu      @relation(fields: [menuId], references: [id], onDelete: Cascade)
-  key         String
-  href        String
-  external    Boolean             @default(false)
-  enabled     Boolean             @default(true)
-  sortOrder   Int                 @default(0)
+  id           String                      @id @default(cuid())
+  menuId       String
+  menu         NavigationMenu              @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  key          String
+  href         String
+  external     Boolean                     @default(false)
+  enabled      Boolean                     @default(true)
+  sortOrder    Int                         @default(0)
   translations NavigationItemTranslation[]
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
 
   @@unique([menuId, key])
   @@index([menuId, enabled, sortOrder])
@@ -153,8 +156,8 @@ model PageSectionTranslation {
 }
 
 model Media {
-  id           String    @id @default(cuid())
-  type         MediaType @default(IMAGE)
+  id           String        @id @default(cuid())
+  type         MediaType     @default(IMAGE)
   url          String
   storageKey   String?
   originalName String?
@@ -163,26 +166,26 @@ model Media {
   sizeBytes    BigInt?
   width        Int?
   height       Int?
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime      @default(now())
+  blogCovers   BlogArticle[] @relation("BlogCoverMedia")
 
   @@index([type, createdAt])
-  blogCovers BlogArticle[] @relation("BlogCoverMedia")
 }
 
 model SiteSettings {
-  id           String                   @id @default(cuid())
-  key          String                   @unique
+  id           String                    @id @default(cuid())
+  key          String                    @unique
   value        Json?
   translations SiteSettingsTranslation[]
-  updatedAt    DateTime                 @updatedAt
+  updatedAt    DateTime                  @updatedAt
 }
 
 model SiteSettingsTranslation {
-  id        String       @id @default(cuid())
+  id         String       @id @default(cuid())
   settingsId String
-  settings  SiteSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
-  language  Language
-  value     Json?
+  settings   SiteSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  language   Language
+  value      Json?
 
   @@unique([settingsId, language])
 }
@@ -256,14 +259,14 @@ model SocialLink {
 }
 
 model AdminUser {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   passwordHash String
   fullName     String
-  active       Boolean  @default(true)
+  active       Boolean   @default(true)
   lastLoginAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model Message {
@@ -271,14 +274,13 @@ model Message {
   name      String
   email     String
   subject   String?
-  content   String       @db.Text
+  content   String        @db.Text
   status    MessageStatus @default(NEW)
   readAt    DateTime?
-  createdAt DateTime     @default(now())
+  createdAt DateTime      @default(now())
 
   @@index([status, createdAt])
 }
-
 
 enum CEFRLevel {
   A1
@@ -291,19 +293,18 @@ enum CEFRLevel {
 }
 
 model LanguageSkill {
-  id           String                       @id @default(cuid())
+  id           String                     @id @default(cuid())
   name         String
   level        CEFRLevel
-  proficiency  Int                          @default(0)
-  enabled      Boolean                      @default(true)
-  sortOrder    Int                          @default(0)
+  proficiency  Int                        @default(0)
+  enabled      Boolean                    @default(true)
+  sortOrder    Int                        @default(0)
   translations LanguageSkillTranslation[]
-  createdAt    DateTime                     @default(now())
-  updatedAt    DateTime                     @updatedAt
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
 
   @@index([enabled, sortOrder])
 }
-
 
 model LanguageSkillTranslation {
   id              String        @id @default(cuid())
@@ -316,8 +317,6 @@ model LanguageSkillTranslation {
   @@unique([languageSkillId, language])
 }
 
-
-
 enum BlogArticleStatus {
   DRAFT
   SCHEDULED
@@ -326,19 +325,19 @@ enum BlogArticleStatus {
 }
 
 model BlogArticle {
-  id              String            @id @default(cuid())
-  status          BlogArticleStatus @default(DRAFT)
-  featured        Boolean           @default(false)
-  allowComments   Boolean           @default(true)
-  coverMediaId    String?
-  coverMedia      Media?            @relation("BlogCoverMedia", fields: [coverMediaId], references: [id], onDelete: SetNull)
-  translations    BlogArticleTranslation[]
-  categories      BlogArticleCategory[]
-  tags            BlogArticleTag[]
-  publishedAt     DateTime?
-  scheduledAt     DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id            String                   @id @default(cuid())
+  status        BlogArticleStatus        @default(DRAFT)
+  featured      Boolean                  @default(false)
+  allowComments Boolean                  @default(true)
+  coverMediaId  String?
+  coverMedia    Media?                   @relation("BlogCoverMedia", fields: [coverMediaId], references: [id], onDelete: SetNull)
+  translations  BlogArticleTranslation[]
+  categories    BlogArticleCategory[]
+  tags          BlogArticleTag[]
+  publishedAt   DateTime?
+  scheduledAt   DateTime?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
 
   @@index([status, publishedAt])
   @@index([featured, status])
@@ -392,21 +391,21 @@ model BlogCategoryTranslation {
 }
 
 model BlogTag {
-  id           String                @id @default(cuid())
-  enabled      Boolean               @default(true)
+  id           String               @id @default(cuid())
+  enabled      Boolean              @default(true)
   translations BlogTagTranslation[]
   articles     BlogArticleTag[]
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 }
 
 model BlogTagTranslation {
-  id          String  @id @default(cuid())
-  tagId       String
-  tag         BlogTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  language    Language
-  name        String
-  slug        String
+  id       String   @id @default(cuid())
+  tagId    String
+  tag      BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  language Language
+  name     String
+  slug     String
 
   @@unique([tagId, language])
   @@unique([language, slug])
@@ -432,3 +431,102 @@ model BlogArticleTag {
   @@index([tagId])
 }
 
+enum PollStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PollType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+}
+
+enum FeedbackStatus {
+  NEW
+  REVIEWED
+  ANSWERED
+  ARCHIVED
+}
+
+model Poll {
+  id           String            @id @default(cuid())
+  status       PollStatus        @default(DRAFT)
+  type         PollType          @default(SINGLE_CHOICE)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  showResults  Boolean           @default(true)
+  translations PollTranslation[]
+  options      PollOption[]
+  votes        PollVote[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([status, startsAt, endsAt])
+  @@index([createdAt])
+}
+
+model PollTranslation {
+  id          String   @id @default(cuid())
+  pollId      String
+  poll        Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  language    Language
+  title       String
+  description String?  @db.Text
+
+  @@unique([pollId, language])
+  @@index([language])
+}
+
+model PollOption {
+  id           String                  @id @default(cuid())
+  pollId       String
+  poll         Poll                    @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  sortOrder    Int                     @default(0)
+  translations PollOptionTranslation[]
+  votes        PollVote[]
+  createdAt    DateTime                @default(now())
+
+  @@index([pollId, sortOrder])
+}
+
+model PollOptionTranslation {
+  id       String     @id @default(cuid())
+  optionId String
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  language Language
+  label    String
+
+  @@unique([optionId, language])
+}
+
+model PollVote {
+  id        String     @id @default(cuid())
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  voterKey  String
+  createdAt DateTime   @default(now())
+
+  @@unique([pollId, voterKey, optionId])
+  @@index([pollId, optionId])
+  @@index([createdAt])
+}
+
+model Feedback {
+  id         String         @id @default(cuid())
+  name       String?
+  email      String?
+  subject    String?
+  content    String         @db.Text
+  rating     Int?
+  status     FeedbackStatus @default(NEW)
+  adminReply String?        @db.Text
+  repliedAt  DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
