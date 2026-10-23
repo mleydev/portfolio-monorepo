@@ -11,6 +11,8 @@ import { ExperienceModule } from './experience/experience.module';
 import { BlogModule } from './blog/blog.module';
 import { SiteManagementModule } from './site-management/site-management.module';
 import { MediaModule } from './media/media.module';
+import { PollsModule } from './polls/polls.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { MediaModule } from './media/media.module';
     BlogModule,
     SiteManagementModule,
     MediaModule,
+    PollsModule,
+    FeedbackModule,
   ],
 })
 export class AppModule {}
