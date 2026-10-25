@@ -39,6 +39,7 @@ export class AuthService {
     const payload = {
       sub: admin.id,
       email: admin.email,
+      tokenVersion: admin.tokenVersion,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -46,12 +47,37 @@ export class AuthService {
     return {
       accessToken,
       tokenType: 'Bearer',
-      expiresIn: this.configService.get<string>('JWT_EXPIRES_IN', '15m'),
+      expiresIn: '15h',
       admin: {
         id: admin.id,
         email: admin.email,
         fullName: admin.fullName,
+        username: admin.username,
+        phone: admin.phone,
+        avatarUrl: admin.avatarUrl,
+        role: admin.role,
+        permissions: admin.permissions,
       },
+    };
+  }
+
+  async logout(adminId: string) {
+    const result = await this.prisma.adminUser.updateMany({
+      where: {
+        id: adminId,
+        active: true,
+      },
+      data: {
+        tokenVersion: { increment: 1 },
+      },
+    });
+
+    if (result.count === 0) {
+      throw new UnauthorizedException();
+    }
+
+    return {
+      message: 'Logged out successfully.',
     };
   }
 }

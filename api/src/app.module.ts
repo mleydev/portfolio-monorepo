@@ -13,6 +13,7 @@ import { SiteManagementModule } from './site-management/site-management.module';
 import { MediaModule } from './media/media.module';
 import { PollsModule } from './polls/polls.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { PermissionsModule } from './auth/permissions.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { FeedbackModule } from './feedback/feedback.module';
       envFilePath: '.env',
     }),
     AuthModule,
+    PermissionsModule,
     PrismaModule,
     ProjectsModule,
     NavigationModule,

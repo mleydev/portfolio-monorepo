@@ -27,6 +27,11 @@ enum MessageStatus {
   ARCHIVED
 }
 
+enum AdminRole {
+  OWNER
+  ADMIN
+}
+
 model Project {
   id            String               @id @default(cuid())
   slug          String               @unique
@@ -263,6 +268,12 @@ model AdminUser {
   email        String    @unique
   passwordHash String
   fullName     String
+  username     String?   @unique
+  phone        String?
+  avatarUrl    String?
+  role         AdminRole @default(ADMIN)
+  permissions  String[]  @default([])
+  tokenVersion Int       @default(0)
   active       Boolean   @default(true)
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
