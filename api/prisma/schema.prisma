@@ -458,7 +458,7 @@ model Poll {
   showResults  Boolean           @default(true)
   translations PollTranslation[]
   options      PollOption[]
-  votes        PollVote[]
+  ballots      PollBallot[]
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
@@ -500,17 +500,28 @@ model PollOptionTranslation {
   @@unique([optionId, language])
 }
 
-model PollVote {
+model PollBallot {
   id        String     @id @default(cuid())
   pollId    String
   poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  optionId  String
-  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
   voterKey  String
+  votes     PollVote[]
   createdAt DateTime   @default(now())
 
-  @@unique([pollId, voterKey, optionId])
-  @@index([pollId, optionId])
+  @@unique([pollId, voterKey])
+  @@index([createdAt])
+}
+
+model PollVote {
+  id        String     @id @default(cuid())
+  ballotId  String
+  ballot    PollBallot @relation(fields: [ballotId], references: [id], onDelete: Cascade)
+  optionId  String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@unique([ballotId, optionId])
+  @@index([optionId])
   @@index([createdAt])
 }
 

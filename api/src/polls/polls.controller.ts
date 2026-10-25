@@ -5,9 +5,12 @@
   Post,
   Body,
   Query,
+  Headers,
+  Req,
   DefaultValuePipe,
   ParseEnumPipe,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Language } from '../../generated/prisma/client';
 import { PollsService } from './polls.service';
@@ -45,9 +48,16 @@ export class PollsController {
     return this.pollsService.getResults(id, language);
   }
 
-  @Post(':id/votes')
-  @ApiOperation({ summary: 'Submit a poll vote' })
-  vote(@Param('id') id: string, @Body() dto: VotePollDto) {
-    return this.pollsService.vote(id, dto);
+  @Post(':id/vote')
+  @ApiOperation({ summary: 'Submit a vote' })
+  async vote(
+    @Param('id') id: string,
+    @Body() dto: VotePollDto,
+    @Headers('x-voter-key') clientVoterKey: string | undefined,
+    @Req() request: Request,
+  ) {
+    const voterKey = clientVoterKey?.trim() || request.ip || 'anonymous-device';
+
+    return this.pollsService.vote(id, dto, voterKey);
   }
 }

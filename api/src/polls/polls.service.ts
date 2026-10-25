@@ -4,14 +4,7 @@
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-
-import {
-  Language,
-  PollStatus,
-  PollType,
-  Prisma,
-} from '../../generated/prisma/client';
-
+import { Language, PollStatus } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePollDto } from './dto/create-poll.dto';
 import { VotePollDto } from './dto/vote-poll.dto';
@@ -118,9 +111,6 @@ export class PollsService {
           },
           orderBy: { sortOrder: 'asc' },
         },
-        _count: {
-          select: { votes: true },
-        },
       },
     });
   }
@@ -140,9 +130,6 @@ export class PollsService {
             },
           },
           orderBy: { sortOrder: 'asc' },
-        },
-        _count: {
-          select: { votes: true },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -165,9 +152,6 @@ export class PollsService {
             },
           },
           orderBy: { sortOrder: 'asc' },
-        },
-        _count: {
-          select: { votes: true },
         },
       },
     });
@@ -274,103 +258,80 @@ export class PollsService {
   /**
    * Validates and records a vote inside a database transaction.
    */
-  async vote(pollId: string, dto: VotePollDto) {
-    // A voter must not submit the same option more than once.
-    const optionIds = [...new Set(dto.optionIds)];
 
-    if (optionIds.length !== dto.optionIds.length) {
-      throw new BadRequestException('Duplicate option IDs are not allowed.');
-    }
+  /**
+   * Validates and records a ballot inside a database transaction.
+   */
+  async vote(pollId: string, dto: VotePollDto, voterKey: string) {
+    const poll = await this.prisma.poll.findUnique({
+      where: { id: pollId },
+      include: { options: true },
+    });
 
-    if (optionIds.length === 0) {
-      throw new BadRequestException('At least one option must be selected.');
+    if (!poll || poll.status !== 'PUBLISHED') {
+      throw new NotFoundException(
+        'نظرسنجی مورد نظر یافت نشد یا در دسترس نیست.',
+      );
     }
 
     const now = new Date();
+    if (
+      (poll.startsAt && now < poll.startsAt) ||
+      (poll.endsAt && now > poll.endsAt)
+    ) {
+      throw new BadRequestException(
+        'مهلت شرکت در این نظرسنجی به پایان رسیده است.',
+      );
+    }
 
-    return this.prisma.$transaction(async (tx) => {
-      // Confirm that the poll exists, is published, and is currently active.
-      const poll = await tx.poll.findFirst({
-        where: {
-          id: pollId,
-          status: PollStatus.PUBLISHED,
-          AND: [
-            {
-              OR: [{ startsAt: null }, { startsAt: { lte: now } }],
-            },
-            {
-              OR: [{ endsAt: null }, { endsAt: { gte: now } }],
-            },
-          ],
-        },
-        select: {
-          id: true,
-          type: true,
-        },
-      });
+    const optionIds = dto.optionIds;
+    if (!optionIds || optionIds.length === 0) {
+      throw new BadRequestException('حداقل یک گزینه باید انتخاب شود.');
+    }
 
-      if (!poll) {
-        throw new NotFoundException('Poll not found or voting is closed.');
-      }
+    if (poll.type === 'SINGLE_CHOICE' && optionIds.length > 1) {
+      throw new BadRequestException(
+        'در این نظرسنجی تنها امکان انتخاب یک گزینه وجود دارد.',
+      );
+    }
 
-      // Single-choice polls accept exactly one selected option.
-      if (poll.type === PollType.SINGLE_CHOICE && optionIds.length !== 1) {
-        throw new BadRequestException('Select exactly one option.');
-      }
+    const uniqueOptionIds = [...new Set(optionIds)];
+    if (uniqueOptionIds.length !== optionIds.length) {
+      throw new BadRequestException('گزینه‌های تکراری مجاز نیستند.');
+    }
 
-      // Ensure that every submitted option belongs to this poll.
-      const validOptions = await tx.pollOption.findMany({
-        where: {
-          pollId,
-          id: { in: optionIds },
-        },
-        select: { id: true },
-      });
+    const validOptionIds = poll.options.map((o) => o.id);
+    const isValid = optionIds.every((id) => validOptionIds.includes(id));
+    if (!isValid) {
+      throw new BadRequestException('برخی از گزینه‌های انتخاب‌شده نامعتبرند.');
+    }
 
-      if (validOptions.length !== optionIds.length) {
-        throw new BadRequestException(
-          'An option does not belong to this poll.',
-        );
-      }
-
-      // Check whether this voter has already submitted a vote.
-      const existingVote = await tx.pollVote.findFirst({
-        where: {
-          pollId,
-          voterKey: dto.voterKey,
-        },
-        select: { id: true },
-      });
-
-      if (existingVote) {
-        throw new ConflictException('This voter has already voted.');
-      }
-
-      // Insert all selected options as one transaction.
-      try {
-        await tx.pollVote.createMany({
-          data: optionIds.map((optionId) => ({
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const ballot = await tx.pollBallot.create({
+          data: {
             pollId,
-            optionId,
-            voterKey: dto.voterKey,
-          })),
+            voterKey,
+          },
         });
-      } catch (error) {
-        // Convert database uniqueness violations into a conflict response.
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2002'
-        ) {
-          throw new ConflictException('A duplicate vote was detected.');
-        }
 
-        throw error;
+        const voteData = optionIds.map((optionId) => ({
+          ballotId: ballot.id,
+          optionId,
+        }));
+
+        await tx.pollVote.createMany({
+          data: voteData,
+        });
+
+        return { message: 'رای شما با موفقیت ثبت شد.', ballotId: ballot.id };
+      });
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        throw new ConflictException('شما قبلاً در این نظرسنجی شرکت کرده‌اید.');
       }
-
-      return {
-        message: 'Vote submitted successfully.',
-      };
-    });
+      throw error;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -380,6 +341,76 @@ export class PollsService {
   /**
    * Returns aggregated results when public result visibility is enabled.
    */
+  // ---------------------------------------------------------------------------
+  // Admin: Poll results
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Returns poll results for administrators, regardless of showResults.
+   * The public visibility setting is intentionally not checked here.
+   */
+  async getAdminResults(id: string, language: Language) {
+    const poll = await this.prisma.poll.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        type: true,
+        showResults: true,
+        createdAt: true,
+        translations: {
+          where: { language },
+        },
+        options: {
+          select: {
+            id: true,
+            sortOrder: true,
+            translations: {
+              where: { language },
+            },
+            _count: {
+              select: { votes: true },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+
+    if (!poll) {
+      throw new NotFoundException('Poll not found.');
+    }
+
+    // Aggregate all votes associated with the poll's options.
+    const totalVotes = poll.options.reduce(
+      (total, option) => total + option._count.votes,
+      0,
+    );
+
+    return {
+      id: poll.id,
+      status: poll.status,
+      type: poll.type,
+      showResults: poll.showResults,
+      createdAt: poll.createdAt,
+      translations: poll.translations,
+      totalVotes,
+      options: poll.options.map((option) => {
+        const votes = option._count.votes;
+
+        return {
+          id: option.id,
+          sortOrder: option.sortOrder,
+          translations: option.translations,
+          votes,
+          percentage:
+            totalVotes === 0
+              ? 0
+              : Math.round((votes / totalVotes) * 10000) / 100,
+        };
+      }),
+    };
+  }
   async getResults(id: string, language: Language) {
     const poll = await this.prisma.poll.findUnique({
       where: { id },

@@ -6,10 +6,11 @@
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { PollStatus } from '../../generated/prisma/client';
+import { Language, PollStatus } from '../../generated/prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreatePollDto } from './dto/create-poll.dto';
 import { UpdatePollStatusDto } from './dto/update-poll-status.dto';
@@ -27,6 +28,13 @@ export class PollsAdminController {
     return this.pollsService.findAllAdmin();
   }
 
+  @Get(':id/results')
+  getResults(
+    @Param('id') id: string,
+    @Query('lang') language: Language = Language.fa,
+  ) {
+    return this.pollsService.getAdminResults(id, language);
+  }
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.pollsService.findOneAdmin(id);
