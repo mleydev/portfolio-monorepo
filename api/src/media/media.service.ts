@@ -3,10 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { MediaType, Prisma } from '../../generated/prisma/client';
+import { MediaType } from '../../generated/prisma/client';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
-import { basename, extname, join, resolve } from 'node:path';
+import { basename, join, resolve, sep, relative } from 'node:path';
 import { fileTypeFromBuffer } from 'file-type';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -75,7 +75,7 @@ export class MediaService {
 
       const dimensions =
         type === MediaType.IMAGE
-          ? await this.getImageDimensions(file.buffer, detected.mime)
+          ? this.getImageDimensions(file.buffer, detected.mime)
           : null;
 
       const media = await this.prisma.media.create({
@@ -172,30 +172,44 @@ export class MediaService {
       );
     }
 
-    if (media.storageKey) {
-      const filePath = join(this.uploadDir, basename(media.storageKey));
+    const filePath = media.storageKey
+      ? resolve(this.uploadDir, media.storageKey)
+      : null;
+
+    if (filePath) {
+      const pathFromUploadDir = relative(this.uploadDir, filePath);
 
       if (
-        !filePath.startsWith(`${this.uploadDir}\\`) &&
-        !filePath.startsWith(`${this.uploadDir}/`)
+        !pathFromUploadDir ||
+        pathFromUploadDir === '..' ||
+        pathFromUploadDir.startsWith(`..${sep}`) ||
+        resolve(filePath) === resolve(this.uploadDir)
       ) {
         throw new BadRequestException('Invalid media storage path.');
       }
-
-      await unlink(filePath).catch((error: NodeJS.ErrnoException) => {
-        if (error.code !== 'ENOENT') throw error;
-      });
     }
 
+    // Delete the database record first to avoid a record pointing
+    // to a file that has already been removed.
     await this.prisma.media.delete({ where: { id } });
+
+    if (filePath) {
+      await unlink(filePath).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== 'ENOENT') {
+          // The database record is already deleted; log this error
+          // in production so orphaned files can be cleaned up.
+          throw error;
+        }
+      });
+    }
 
     return { success: true, id };
   }
 
-  private async getImageDimensions(
+  private getImageDimensions(
     buffer: Buffer,
     mime: string,
-  ): Promise<{ width: number; height: number } | null> {
+  ): { width: number; height: number } | null {
     if (
       mime !== 'image/png' &&
       mime !== 'image/jpeg' &&

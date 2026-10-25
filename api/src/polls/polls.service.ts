@@ -412,8 +412,21 @@ export class PollsService {
     };
   }
   async getResults(id: string, language: Language) {
-    const poll = await this.prisma.poll.findUnique({
-      where: { id },
+    const now = new Date();
+
+    const poll = await this.prisma.poll.findFirst({
+      where: {
+        id,
+        status: PollStatus.PUBLISHED,
+        AND: [
+          {
+            OR: [{ startsAt: null }, { startsAt: { lte: now } }],
+          },
+          {
+            OR: [{ endsAt: null }, { endsAt: { gte: now } }],
+          },
+        ],
+      },
       select: {
         id: true,
         showResults: true,

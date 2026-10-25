@@ -24,6 +24,7 @@ import { memoryStorage } from 'multer';
 import { MediaType } from '../../generated/prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MediaService } from './media.service';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Admin Media')
 @ApiBearerAuth('JWT-auth')
@@ -32,6 +33,8 @@ import { MediaService } from './media.service';
 export class MediaAdminController {
   constructor(private readonly mediaService: MediaService) {}
 
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('upload')
   @ApiConsumes('multipart/form-data')
   @ApiBody({
