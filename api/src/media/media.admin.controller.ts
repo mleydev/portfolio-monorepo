@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   Controller,
   Delete,
@@ -23,12 +23,15 @@ import {
 import { memoryStorage } from 'multer';
 import { MediaType } from '../../generated/prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { MediaService } from './media.service';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 @ApiTags('Admin Media')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('media')
 @Controller('admin/media')
 export class MediaAdminController {
   constructor(private readonly mediaService: MediaService) {}

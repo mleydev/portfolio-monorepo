@@ -10,13 +10,16 @@
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { BlogService } from './blog.service';
 import { CreateBlogArticleDto } from './dto/create-blog-article.dto';
 import { UpdateBlogArticleDto } from './dto/update-blog-article.dto';
 
 @ApiTags('Admin Blog')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('blog')
 @Controller('admin/blog')
 export class BlogAdminController {
   constructor(private readonly blogService: BlogService) {}

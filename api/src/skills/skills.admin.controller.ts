@@ -10,13 +10,16 @@
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
 import { SkillsService } from './skills.service';
 
 @ApiTags('Admin Skills')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('skills')
 @Controller('admin/skills')
 export class SkillsAdminController {
   constructor(private readonly skillsService: SkillsService) {}

@@ -1,4 +1,4 @@
-import {
+﻿import {
   Body,
   Controller,
   Get,
@@ -10,6 +10,8 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { SiteManagementService } from './site-management.service';
 import { UpdateHomeSectionDto } from './dto/update-home-section.dto';
 import { ReorderHomeSectionsDto } from './dto/reorder-home-sections.dto';
@@ -18,7 +20,8 @@ import { UpsertSiteSettingDto } from './dto/upsert-site-setting.dto';
 
 @ApiTags('Admin Site Management')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('site-management')
 @Controller('admin')
 export class SiteManagementAdminController {
   constructor(private readonly siteManagementService: SiteManagementService) {}

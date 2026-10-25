@@ -12,13 +12,16 @@
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Language, PollStatus } from '../../generated/prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CreatePollDto } from './dto/create-poll.dto';
 import { UpdatePollStatusDto } from './dto/update-poll-status.dto';
 import { PollsService } from './polls.service';
 
 @ApiTags('Admin Polls')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('polls')
 @Controller('admin/polls')
 export class PollsAdminController {
   constructor(private readonly pollsService: PollsService) {}

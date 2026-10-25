@@ -10,6 +10,8 @@
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { BlogTaxonomyService } from './blog-taxonomy.service';
 import { CreateBlogCategoryDto } from './dto/create-blog-category.dto';
 import { UpdateBlogCategoryDto } from './dto/update-blog-category.dto';
@@ -18,7 +20,8 @@ import { UpdateBlogTagDto } from './dto/update-blog-tag.dto';
 
 @ApiTags('Admin Blog Taxonomy')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('blog')
 @Controller('admin/blog/categories')
 export class BlogCategoriesAdminController {
   constructor(private readonly taxonomyService: BlogTaxonomyService) {}
@@ -46,7 +49,8 @@ export class BlogCategoriesAdminController {
 
 @ApiTags('Admin Blog Taxonomy')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('blog')
 @Controller('admin/blog/tags')
 export class BlogTagsAdminController {
   constructor(private readonly taxonomyService: BlogTaxonomyService) {}

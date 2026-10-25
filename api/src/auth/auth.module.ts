@@ -7,6 +7,9 @@ import { AuthController } from './auth.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AdminUsersController } from './admin-users.controller';
+import { AdminUsersService } from './admin-users.service';
+import { OwnerGuard } from './guards/owner.guard';
 
 @Module({
   imports: [
@@ -22,8 +25,14 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard],
+  controllers: [AuthController, AdminUsersController],
+  providers: [
+    AuthService,
+    AdminUsersService,
+    JwtStrategy,
+    JwtAuthGuard,
+    OwnerGuard,
+  ],
   exports: [AuthService, JwtModule, JwtAuthGuard],
 })
 export class AuthModule {}

@@ -2,13 +2,16 @@
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { FeedbackStatus } from '../../generated/prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { FeedbackService } from './feedback.service';
 import { UpdateFeedbackStatusDto } from './dto/update-feedback-status.dto';
 import { ReplyFeedbackDto } from './dto/reply-feedback.dto';
 
 @ApiTags('Admin Feedback')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('feedback')
 @Controller('admin/feedback')
 export class FeedbackAdminController {
   constructor(private readonly feedbackService: FeedbackService) {}

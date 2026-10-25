@@ -10,13 +10,16 @@
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CreateLanguageSkillDto } from './dto/create-language-skill.dto';
 import { UpdateLanguageSkillDto } from './dto/update-language-skill.dto';
 import { LanguageSkillsService } from './language-skills.service';
 
 @ApiTags('Admin Language Skills')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermission('language-skills')
 @Controller('admin/language-skills')
 export class LanguageSkillsAdminController {
   constructor(private readonly languageSkillsService: LanguageSkillsService) {}
