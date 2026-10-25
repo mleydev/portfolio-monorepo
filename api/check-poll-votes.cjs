@@ -20,11 +20,7 @@ async function main() {
   const groups = new Map();
 
   for (const vote of votes) {
-    const key = JSON.stringify([
-      vote.pollId,
-      vote.voterKey,
-      vote.optionId,
-    ]);
+    const key = JSON.stringify([vote.pollId, vote.voterKey, vote.optionId]);
 
     groups.set(key, (groups.get(key) ?? 0) + 1);
   }
