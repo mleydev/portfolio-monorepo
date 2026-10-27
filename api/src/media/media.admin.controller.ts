@@ -36,7 +36,7 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 export class MediaAdminController {
   constructor(private readonly mediaService: MediaService) {}
 
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard, ThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('upload')
   @ApiConsumes('multipart/form-data')

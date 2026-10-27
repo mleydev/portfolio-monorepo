@@ -12,7 +12,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-
+import { UpdateMyAvatarDto } from './dto/update-my-avatar.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 
@@ -60,5 +60,14 @@ export class AuthController {
     @Body() dto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(request.user.id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/avatar')
+  updateMyAvatar(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: UpdateMyAvatarDto,
+  ) {
+    return this.authService.updateMyAvatar(request.user.id, dto);
   }
 }

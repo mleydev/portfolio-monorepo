@@ -8,6 +8,8 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 import { ConflictException } from '@nestjs/common';
 import { Prisma } from 'generated/prisma/client';
+import { NotFoundException } from '@nestjs/common';
+import { UpdateMyAvatarDto } from './dto/update-my-avatar.dto';
 
 @Injectable()
 export class AuthService {
@@ -191,5 +193,36 @@ export class AuthService {
     return {
       message: 'Password changed successfully. Please log in again.',
     };
+  }
+
+  async updateMyAvatar(adminId: string, dto: UpdateMyAvatarDto) {
+    const admin = await this.prisma.adminUser.findUnique({
+      where: { id: adminId },
+      select: { id: true, active: true },
+    });
+
+    if (!admin || !admin.active) {
+      throw new UnauthorizedException();
+    }
+
+    const media = await this.prisma.media.findUnique({
+      where: { id: dto.mediaId },
+      select: {
+        id: true,
+        type: true,
+        url: true,
+      },
+    });
+
+    if (!media || media.type !== 'IMAGE') {
+      throw new NotFoundException('Image media was not found.');
+    }
+
+    await this.prisma.adminUser.update({
+      where: { id: adminId },
+      data: { avatarUrl: media.url },
+    });
+
+    return this.getMyProfile(adminId);
   }
 }

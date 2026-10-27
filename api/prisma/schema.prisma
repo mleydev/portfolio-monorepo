@@ -32,6 +32,12 @@ enum AdminRole {
   ADMIN
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  PREFER_NOT_TO_SAY
+}
+
 model Project {
   id            String               @id @default(cuid())
   slug          String               @unique
@@ -271,6 +277,7 @@ model AdminUser {
   username     String?   @unique
   phone        String?
   avatarUrl    String?
+  gender       Gender?
   role         AdminRole @default(ADMIN)
   permissions  String[]  @default([])
   tokenVersion Int       @default(0)
