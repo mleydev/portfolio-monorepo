@@ -15,6 +15,9 @@ import {
 import { UpdateMyAvatarDto } from './dto/update-my-avatar.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
+import { Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from './auth-cookie.constants';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -28,14 +31,35 @@ export class AuthController {
 
   @UseGuards(ThrottlerGuard)
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.login(dto);
+
+    response.cookie(AUTH_COOKIE_NAME, result.accessToken, AUTH_COOKIE_OPTIONS);
+
+    const { accessToken, ...safeResult } = result;
+
+    return safeResult;
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
-  logout(@Req() request: AuthenticatedRequest) {
-    return this.authService.logout(request.user.id);
+  async logout(
+    @Req() request: AuthenticatedRequest,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.authService.logout(request.user.id);
+
+    response.clearCookie(AUTH_COOKIE_NAME, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/api/v1/auth',
+    });
+
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)

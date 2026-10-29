@@ -24,9 +24,7 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // CORS configuration
-  const corsOrigins = (
-    process.env.CORS_ORIGINS ?? 'http://localhost:3000,http://localhost:3001'
-  )
+  const corsOrigins = 'http://localhost:5173'
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
