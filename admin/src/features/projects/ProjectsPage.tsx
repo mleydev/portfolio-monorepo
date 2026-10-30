@@ -226,6 +226,38 @@ function ProjectsPage() {
   const [detailsProject, setDetailsProject] = useState<Project | null>(null);
   const [detailsLanguage, setDetailsLanguage] = useState<Language>("fa");
 
+  function openDetailsModal(project: Project) {
+    setDetailsProject(project);
+
+    const preferredLanguage: Language = project.translations.some(
+      (item) => item.language === "fa",
+    )
+      ? "fa"
+      : (project.translations[0]?.language ?? "en");
+
+    setDetailsLanguage(preferredLanguage);
+  }
+
+  function closeDetailsModal() {
+    setDetailsProject(null);
+  }
+
+  useEffect(() => {
+    if (!detailsProject) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeDetailsModal();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [detailsProject]);
+
   const loadProjects = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -878,7 +910,18 @@ function ProjectsPage() {
 
               return (
                 <article className="project-card" key={project.id}>
-                  <div className="project-card-cover">
+                  <div
+                    className="project-card-cover project-card-cover-clickable"
+                    onClick={() => openDetailsModal(project)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openDetailsModal(project);
+                      }
+                    }}
+                    aria-label={`مشاهده جزئیات ${translation?.title ?? project.slug}`}>
                     {project.coverImage ? (
                       <img
                         src={resolveMediaUrl(project.coverImage)}
@@ -906,7 +949,14 @@ function ProjectsPage() {
                   <div className="project-card-body">
                     <div className="project-card-title">
                       <div>
-                        <h2>{translation?.title ?? "بدون عنوان فارسی"}</h2>
+                        <h2>
+                          <button
+                            type="button"
+                            className="project-details-trigger"
+                            onClick={() => openDetailsModal(project)}>
+                            {translation?.title ?? "بدون عنوان فارسی"}
+                          </button>
+                        </h2>
                         <code>{project.slug}</code>
                         {project.publishedAt && (
                           <span className="project-published-date">
@@ -1325,6 +1375,267 @@ function ProjectsPage() {
           </section>
         </div>
       )}
+      {detailsProject &&
+        (() => {
+          const translation =
+            detailsProject.translations.find(
+              (item) => item.language === detailsLanguage,
+            ) ?? null;
+
+          const isRtl = detailsLanguage === "fa" || detailsLanguage === "ar";
+
+          return (
+            <div
+              className="project-details-backdrop"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) {
+                  closeDetailsModal();
+                }
+              }}>
+              <section
+                className="project-details-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="project-details-title"
+                dir={isRtl ? "rtl" : "ltr"}>
+                <header className="project-details-header">
+                  <div>
+                    <span className="projects-eyebrow">
+                      <FolderKanban size={15} />
+                      جزئیات نمونه‌کار
+                    </span>
+                    <h2 id="project-details-title">
+                      {translation?.title ?? detailsProject.slug}
+                    </h2>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="projects-icon-button"
+                    onClick={closeDetailsModal}
+                    aria-label="بستن جزئیات">
+                    <X size={19} />
+                  </button>
+                </header>
+
+                <div className="project-details-content">
+                  <div className="project-details-cover">
+                    {detailsProject.coverImage ? (
+                      <img
+                        src={resolveMediaUrl(detailsProject.coverImage)}
+                        alt={translation?.title ?? detailsProject.slug}
+                      />
+                    ) : (
+                      <div className="project-cover-placeholder">
+                        <Code2 size={40} />
+                        <span>MEHDI LEILAEI</span>
+                      </div>
+                    )}
+
+                    <div className="project-details-badges">
+                      <span
+                        className={`project-status ${detailsProject.published ? "published" : "draft"}`}>
+                        {detailsProject.published ? "منتشرشده" : "پیش‌نویس"}
+                      </span>
+
+                      {detailsProject.featured && (
+                        <span className="project-featured">
+                          <Star size={13} fill="currentColor" />
+                          ویژه
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="project-details-language-tabs">
+                    {LANGUAGES.map(({ value, label }) => {
+                      const exists = detailsProject.translations.some(
+                        (item) => item.language === value,
+                      );
+
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          disabled={!exists}
+                          className={detailsLanguage === value ? "active" : ""}
+                          onClick={() => setDetailsLanguage(value)}>
+                          {label}
+                          {!exists && <span> — ثبت نشده</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {translation ? (
+                    <div
+                      className="project-details-information"
+                      dir={isRtl ? "rtl" : "ltr"}>
+                      <div className="project-details-title-row">
+                        <div>
+                          <span className="project-details-label">
+                            عنوان پروژه
+                          </span>
+                          <h3>{translation.title}</h3>
+                          <code dir="ltr">{detailsProject.slug}</code>
+                        </div>
+
+                        <span className="project-details-order">
+                          #{detailsProject.sortOrder}
+                        </span>
+                      </div>
+
+                      {translation.summary && (
+                        <section className="project-details-section">
+                          <h4>خلاصه پروژه</h4>
+                          <p>{translation.summary}</p>
+                        </section>
+                      )}
+
+                      <section className="project-details-section">
+                        <h4>توضیحات پروژه</h4>
+                        <p>{translation.description}</p>
+                      </section>
+
+                      {translation.content && (
+                        <section className="project-details-section">
+                          <h4>محتوای کامل</h4>
+                          <div className="project-details-content-text">
+                            {translation.content}
+                          </div>
+                        </section>
+                      )}
+
+                      {translation.role && (
+                        <section className="project-details-section">
+                          <h4>نقش من در پروژه</h4>
+                          <p>{translation.role}</p>
+                        </section>
+                      )}
+
+                      <section className="project-details-section">
+                        <h4>فناوری‌های استفاده‌شده</h4>
+                        <div className="project-technologies">
+                          {(detailsProject.technologies ?? []).map(
+                            (technology) => (
+                              <span key={technology}>{technology}</span>
+                            ),
+                          )}
+                          {detailsProject.technologies?.length === 0 && (
+                            <span>فناوری‌ای ثبت نشده است.</span>
+                          )}
+                        </div>
+                      </section>
+
+                      <section className="project-details-section">
+                        <h4>اطلاعات انتشار</h4>
+                        <div className="project-details-meta">
+                          <div>
+                            <span>تاریخ ایجاد</span>
+                            <strong>
+                              {formatPublishedDate(detailsProject.createdAt)}
+                            </strong>
+                          </div>
+                          <div>
+                            <span>تاریخ انتشار</span>
+                            <strong>
+                              {formatPublishedDate(
+                                detailsProject.publishedAt,
+                              ) || "منتشر نشده"}
+                            </strong>
+                          </div>
+                          <div>
+                            <span>ترتیب نمایش</span>
+                            <strong>{detailsProject.sortOrder}</strong>
+                          </div>
+                          <div>
+                            <span>وضعیت</span>
+                            <strong>
+                              {detailsProject.published
+                                ? "منتشرشده"
+                                : "پیش‌نویس"}
+                            </strong>
+                          </div>
+                        </div>
+                      </section>
+
+                      {(detailsProject.demoUrl ||
+                        detailsProject.repositoryUrl) && (
+                        <section className="project-details-section">
+                          <h4>لینک‌های پروژه</h4>
+                          <div className="project-details-links">
+                            {detailsProject.demoUrl && (
+                              <a
+                                href={detailsProject.demoUrl}
+                                target="_blank"
+                                rel="noreferrer">
+                                <ExternalLink size={16} />
+                                مشاهده دمو
+                              </a>
+                            )}
+
+                            {detailsProject.repositoryUrl && (
+                              <a
+                                href={detailsProject.repositoryUrl}
+                                target="_blank"
+                                rel="noreferrer">
+                                <Code2 size={16} />
+                                مشاهده مخزن کد
+                              </a>
+                            )}
+                          </div>
+                        </section>
+                      )}
+
+                      {(translation.metaTitle ||
+                        translation.metaDescription) && (
+                        <section className="project-details-section">
+                          <h4>اطلاعات سئو</h4>
+                          {translation.metaTitle && (
+                            <p>
+                              <strong>عنوان:</strong> {translation.metaTitle}
+                            </p>
+                          )}
+                          {translation.metaDescription && (
+                            <p>
+                              <strong>توضیحات:</strong>{" "}
+                              {translation.metaDescription}
+                            </p>
+                          )}
+                        </section>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="projects-state">
+                      <AlertCircle size={25} />
+                      <p>برای این پروژه ترجمه‌ای در این زبان ثبت نشده است.</p>
+                    </div>
+                  )}
+                </div>
+
+                <footer className="project-details-footer">
+                  <button
+                    type="button"
+                    className="projects-secondary-button"
+                    onClick={closeDetailsModal}>
+                    بستن
+                  </button>
+
+                  <button
+                    type="button"
+                    className="projects-primary-button"
+                    onClick={() => {
+                      closeDetailsModal();
+                      openEditModal(detailsProject);
+                    }}>
+                    <Pencil size={15} />
+                    ویرایش پروژه
+                  </button>
+                </footer>
+              </section>
+            </div>
+          );
+        })()}
     </section>
   );
 }
