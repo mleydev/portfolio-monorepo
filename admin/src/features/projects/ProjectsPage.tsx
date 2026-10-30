@@ -223,6 +223,9 @@ function ProjectsPage() {
   const [pageSize, setPageSize] = useState(8);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  const [detailsProject, setDetailsProject] = useState<Project | null>(null);
+  const [detailsLanguage, setDetailsLanguage] = useState<Language>("fa");
+
   const loadProjects = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -434,8 +437,6 @@ function ProjectsPage() {
     setError("");
     setNotice("");
 
-    
-
     try {
       const data = new FormData();
       data.append("file", file);
@@ -446,7 +447,6 @@ function ProjectsPage() {
         data,
       );
 
-      
       if (!response.data?.url) {
         throw new Error("Upload response did not include a URL.");
       }

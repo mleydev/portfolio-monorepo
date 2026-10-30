@@ -15,7 +15,13 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   // Security headers
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: {
+        policy: 'cross-origin',
+      },
+    }),
+  );
 
   // Compress HTTP responses
   app.use(compression());
