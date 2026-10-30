@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import "./App.css";
 import ProjectsPage from "./features/projects/ProjectsPage";
+import ProfilePage from "./features/profile/ProfilePage";
 
 type NavItem = {
   label: string;
@@ -342,7 +343,9 @@ function App() {
             </div>
           </section>
 
-          {activePage === "پروژه‌ها" ? (
+          {activePage === "پروفایل" ? (
+            <ProfilePage />
+          ) : activePage === "پروژه‌ها" ? (
             <ProjectsPage />
           ) : activePage === "داشبورد" ? (
             <>

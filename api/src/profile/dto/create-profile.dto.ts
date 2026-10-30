@@ -41,11 +41,19 @@ export class CreateProfileDto {
   location?: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsUrl({
+    require_tld: false,
+    protocols: ['http', 'https'],
+    require_protocol: true,
+  })
   avatar?: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsUrl({
+    require_tld: false,
+    protocols: ['http', 'https'],
+    require_protocol: true,
+  })
   resumeUrl?: string;
 
   @IsArray()
