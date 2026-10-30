@@ -52,7 +52,7 @@ export class CreateProjectDto {
   slug: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsUrl({ require_tld: false })
   coverImage?: string;
 
   @IsOptional()

@@ -1,15 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import {
   AlertCircle,
   ArrowUpRight,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Code2,
   ExternalLink,
   FolderKanban,
+  LayoutGrid,
+  List,
   LoaderCircle,
   Pencil,
   Plus,
   RefreshCw,
   Search,
+  SlidersHorizontal,
+  UploadCloud,
   Star,
   Trash2,
   X,
@@ -18,6 +26,15 @@ import api from "../../lib/api";
 import "./ProjectsPage.css";
 
 type Language = "fa" | "en" | "tr" | "ar";
+type ProjectView = "grid" | "list";
+type ProjectSort =
+  | "newest"
+  | "oldest"
+  | "title"
+  | "sortOrder"
+  | "publishedNewest";
+type FeaturedFilter = "all" | "featured" | "regular";
+type DateFilter = "all" | "7days" | "30days" | "thisYear";
 
 type ProjectTranslation = {
   id?: string;
@@ -31,6 +48,11 @@ type ProjectTranslation = {
   metaDescription?: string | null;
 };
 
+type MediaUploadResponse = {
+  url: string;
+  storageKey?: string;
+};
+
 type Project = {
   id: string;
   slug: string;
@@ -40,6 +62,7 @@ type Project = {
   technologies?: string[] | null;
   featured: boolean;
   published: boolean;
+  publishedAt?: string | null;
   sortOrder: number;
   createdAt: string;
   translations: ProjectTranslation[];
@@ -142,14 +165,8 @@ function getErrorMessage(error: unknown): string {
 
       if (typeof data === "object" && data !== null && "message" in data) {
         const message = data.message;
-
-        if (Array.isArray(message)) {
-          return message.join("، ");
-        }
-
-        if (typeof message === "string") {
-          return message;
-        }
+        if (Array.isArray(message)) return message.join("، ");
+        if (typeof message === "string") return message;
       }
     }
   }
@@ -157,10 +174,35 @@ function getErrorMessage(error: unknown): string {
   return "عملیات انجام نشد. اتصال API و دسترسی حساب را بررسی کن.";
 }
 
+function resolveMediaUrl(value?: string | null): string {
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value)) return value;
+
+  const baseUrl = api.defaults.baseURL ?? "http://localhost:4000/api/v1";
+  try {
+    const apiOrigin = new URL(baseUrl, window.location.origin).origin;
+    return new URL(value, apiOrigin).toString();
+  } catch {
+    return value;
+  }
+}
+
+function formatPublishedDate(value?: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("fa-IR", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
 function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
@@ -171,6 +213,15 @@ function ProjectsPage() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [form, setForm] = useState<ProjectForm>(createEmptyForm);
   const [activeLanguage, setActiveLanguage] = useState<Language>("fa");
+
+  const [view, setView] = useState<ProjectView>("grid");
+  const [languageFilter, setLanguageFilter] = useState<"all" | Language>("all");
+  const [featuredFilter, setFeaturedFilter] = useState<FeaturedFilter>("all");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [sortBy, setSortBy] = useState<ProjectSort>("newest");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -192,15 +243,39 @@ function ProjectsPage() {
 
   const filteredProjects = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase();
+    const now = new Date();
 
-    return projects.filter((project) => {
+    const matchesDate = (project: Project) => {
+      if (dateFilter === "all") return true;
+      if (!project.published || !project.publishedAt) return false;
+
+      const publishedDate = new Date(project.publishedAt);
+      if (Number.isNaN(publishedDate.getTime()) || publishedDate > now)
+        return false;
+
+      if (dateFilter === "7days") {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 7);
+        return publishedDate >= start;
+      }
+
+      if (dateFilter === "30days") {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 30);
+        return publishedDate >= start;
+      }
+
+      return publishedDate.getFullYear() === now.getFullYear();
+    };
+
+    const result = projects.filter((project) => {
       const matchesSearch =
         !normalizedSearch ||
         project.slug.toLocaleLowerCase().includes(normalizedSearch) ||
         project.translations.some((translation) =>
           translation.title.toLocaleLowerCase().includes(normalizedSearch),
         ) ||
-        project.technologies?.some((technology) =>
+        (project.technologies ?? []).some((technology) =>
           technology.toLocaleLowerCase().includes(normalizedSearch),
         );
 
@@ -209,9 +284,92 @@ function ProjectsPage() {
         (statusFilter === "published" && project.published) ||
         (statusFilter === "draft" && !project.published);
 
-      return matchesSearch && matchesStatus;
+      const matchesLanguage =
+        languageFilter === "all" ||
+        project.translations.some(
+          (translation) => translation.language === languageFilter,
+        );
+
+      const matchesFeatured =
+        featuredFilter === "all" ||
+        (featuredFilter === "featured" && project.featured) ||
+        (featuredFilter === "regular" && !project.featured);
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesLanguage &&
+        matchesFeatured &&
+        matchesDate(project)
+      );
     });
-  }, [projects, search, statusFilter]);
+
+    return result.sort((a, b) => {
+      if (sortBy === "newest") {
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      }
+      if (sortBy === "oldest") {
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      }
+      if (sortBy === "title") {
+        const titleA =
+          a.translations.find((item) => item.language === "fa")?.title ??
+          a.slug;
+        const titleB =
+          b.translations.find((item) => item.language === "fa")?.title ??
+          b.slug;
+        return titleA.localeCompare(titleB, "fa");
+      }
+      if (sortBy === "sortOrder") return a.sortOrder - b.sortOrder;
+
+      // Keep projects without a publication date at the end.
+      const dateA = a.publishedAt
+        ? new Date(a.publishedAt).getTime()
+        : -Infinity;
+      const dateB = b.publishedAt
+        ? new Date(b.publishedAt).getTime()
+        : -Infinity;
+      return dateB - dateA;
+    });
+  }, [
+    projects,
+    search,
+    statusFilter,
+    languageFilter,
+    featuredFilter,
+    dateFilter,
+    sortBy,
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / pageSize));
+  const paginatedProjects = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredProjects.slice(start, start + pageSize);
+  }, [filteredProjects, page, pageSize]);
+
+  const rangeStart =
+    filteredProjects.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, filteredProjects.length);
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    search,
+    statusFilter,
+    languageFilter,
+    featuredFilter,
+    dateFilter,
+    sortBy,
+    pageSize,
+  ]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const publishedCount = projects.filter((project) => project.published).length;
   const draftCount = projects.length - publishedCount;
@@ -255,7 +413,68 @@ function ProjectsPage() {
     }));
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleCoverUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    // Allow choosing the same file again after a failed upload.
+    event.target.value = "";
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      setError("فرمت تصویر باید JPG، PNG، WEBP یا GIF باشد.");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.");
+      return;
+    }
+
+    setUploadingCover(true);
+    setError("");
+    setNotice("");
+
+    
+
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      data.append("type", "IMAGE");
+
+      const response = await api.post<MediaUploadResponse>(
+        "/admin/media/upload",
+        data,
+      );
+
+      
+      if (!response.data?.url) {
+        throw new Error("Upload response did not include a URL.");
+      }
+
+      // Keep the API-provided path in the database; resolve it to an absolute
+      // URL only when rendering the image in the browser.
+      const baseUrl = api.defaults.baseURL ?? "http://localhost:4000/api/v1";
+
+      const coverImageUrl = new URL(
+        response.data.url,
+        `${new URL(baseUrl).origin}/`,
+      ).toString();
+
+      updateField("coverImage", coverImageUrl);
+      setNotice("تصویر کاور با موفقیت آپلود شد.");
+
+      console.log("Uploaded image URL:", response.data.url);
+      console.log("Final coverImage URL:", coverImageUrl);
+
+      updateField("coverImage", coverImageUrl);
+    } catch (uploadError) {
+      setError(getErrorMessage(uploadError));
+    } finally {
+      setUploadingCover(false);
+    }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     setError("");
@@ -283,6 +502,13 @@ function ProjectsPage() {
       return;
     }
 
+    const sortOrder = Number(form.sortOrder);
+    if (!Number.isInteger(sortOrder) || sortOrder < 0) {
+      setError("ترتیب نمایش باید یک عدد صحیح و صفر یا بیشتر باشد.");
+      setSaving(false);
+      return;
+    }
+
     const payload = {
       slug: form.slug.trim(),
       coverImage: form.coverImage.trim() || undefined,
@@ -294,7 +520,7 @@ function ProjectsPage() {
         .filter(Boolean),
       featured: form.featured,
       published: form.published,
-      sortOrder: Number(form.sortOrder),
+      sortOrder,
       translations: translations.map((translation) => ({
         ...translation,
         title: translation.title.trim(),
@@ -315,7 +541,6 @@ function ProjectsPage() {
         await api.post("/admin/projects", payload);
         setNotice("پروژه جدید با موفقیت ایجاد شد.");
       }
-
       setModalOpen(false);
       await loadProjects();
     } catch (requestError) {
@@ -329,16 +554,13 @@ function ProjectsPage() {
     const title =
       project.translations.find((translation) => translation.language === "fa")
         ?.title ?? project.slug;
-
     if (
       !window.confirm(`پروژه «${title}» حذف شود؟ این عملیات قابل بازگشت نیست.`)
-    ) {
+    )
       return;
-    }
 
     setError("");
     setNotice("");
-
     try {
       await api.delete(`/admin/projects/${project.id}`);
       setNotice("پروژه حذف شد.");
@@ -346,6 +568,16 @@ function ProjectsPage() {
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     }
+  }
+
+  function resetFilters() {
+    setSearch("");
+    setStatusFilter("all");
+    setLanguageFilter("all");
+    setFeaturedFilter("all");
+    setDateFilter("all");
+    setSortBy("newest");
+    setPage(1);
   }
 
   return (
@@ -362,8 +594,10 @@ function ProjectsPage() {
             کنترل کن.
           </p>
         </div>
-
-        <button className="projects-primary-button" onClick={openCreateModal}>
+        <button
+          className="projects-primary-button"
+          type="button"
+          onClick={openCreateModal}>
           <Plus size={18} />
           پروژه جدید
         </button>
@@ -372,7 +606,10 @@ function ProjectsPage() {
       {notice && (
         <div className="projects-notice" role="status">
           <span>{notice}</span>
-          <button aria-label="بستن پیام" onClick={() => setNotice("")}>
+          <button
+            type="button"
+            aria-label="بستن پیام"
+            onClick={() => setNotice("")}>
             <X size={16} />
           </button>
         </div>
@@ -382,7 +619,10 @@ function ProjectsPage() {
         <div className="projects-error" role="alert">
           <AlertCircle size={18} />
           <span>{error}</span>
-          <button aria-label="بستن خطا" onClick={() => setError("")}>
+          <button
+            type="button"
+            aria-label="بستن خطا"
+            onClick={() => setError("")}>
             <X size={16} />
           </button>
         </div>
@@ -398,7 +638,6 @@ function ProjectsPage() {
             <strong>{projects.length}</strong>
           </span>
         </article>
-
         <article className="projects-stat">
           <span className="projects-stat-icon green">
             <ArrowUpRight size={20} />
@@ -408,7 +647,6 @@ function ProjectsPage() {
             <strong>{publishedCount}</strong>
           </span>
         </article>
-
         <article className="projects-stat">
           <span className="projects-stat-icon orange">
             <Pencil size={20} />
@@ -418,7 +656,6 @@ function ProjectsPage() {
             <strong>{draftCount}</strong>
           </span>
         </article>
-
         <article className="projects-stat">
           <span className="projects-stat-icon blue">
             <Star size={20} />
@@ -437,7 +674,17 @@ function ProjectsPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="جست‌وجوی عنوان، اسلاگ یا فناوری..."
+            aria-label="جست‌وجوی پروژه‌ها"
           />
+          {search && (
+            <button
+              type="button"
+              className="projects-clear-search"
+              onClick={() => setSearch("")}
+              aria-label="پاک کردن جست‌وجو">
+              <X size={15} />
+            </button>
+          )}
         </label>
 
         <select
@@ -447,12 +694,57 @@ function ProjectsPage() {
             setStatusFilter(event.target.value as typeof statusFilter)
           }
           aria-label="فیلتر وضعیت انتشار">
-          <option value="all">همه پروژه‌ها</option>
+          <option value="all">همه وضعیت‌ها</option>
           <option value="published">منتشرشده</option>
-          <option value="draft">پیش‌نویس‌ها</option>
+          <option value="draft">پیش‌نویس</option>
+        </select>
+
+        <select
+          className="projects-filter projects-sort"
+          value={sortBy}
+          onChange={(event) => setSortBy(event.target.value as ProjectSort)}
+          aria-label="مرتب‌سازی پروژه‌ها">
+          <option value="newest">جدیدترین ثبت‌شده</option>
+          <option value="oldest">قدیمی‌ترین ثبت‌شده</option>
+          <option value="publishedNewest">جدیدترین انتشار</option>
+          <option value="title">عنوان (الفبا)</option>
+          <option value="sortOrder">ترتیب نمایش</option>
         </select>
 
         <button
+          type="button"
+          className={`projects-icon-button ${filtersOpen ? "active" : ""}`}
+          onClick={() => setFiltersOpen((open) => !open)}
+          aria-expanded={filtersOpen}
+          aria-label="فیلترهای بیشتر"
+          title="فیلترهای بیشتر">
+          <SlidersHorizontal size={17} />
+        </button>
+
+        <div
+          className="projects-view-toggle"
+          role="group"
+          aria-label="نحوه نمایش">
+          <button
+            type="button"
+            className={view === "grid" ? "active" : ""}
+            onClick={() => setView("grid")}
+            aria-label="نمایش شبکه‌ای"
+            title="نمایش شبکه‌ای">
+            <LayoutGrid size={16} />
+          </button>
+          <button
+            type="button"
+            className={view === "list" ? "active" : ""}
+            onClick={() => setView("list")}
+            aria-label="نمایش فهرستی"
+            title="نمایش فهرستی">
+            <List size={17} />
+          </button>
+        </div>
+
+        <button
+          type="button"
           className="projects-icon-button"
           onClick={() => void loadProjects()}
           disabled={loading}
@@ -460,6 +752,84 @@ function ProjectsPage() {
           title="بارگذاری مجدد">
           <RefreshCw size={17} className={loading ? "projects-spin" : ""} />
         </button>
+      </div>
+
+      {filtersOpen && (
+        <div className="projects-advanced-filters">
+          <label className="projects-filter-field">
+            <span>زبان محتوا</span>
+            <select
+              className="projects-filter"
+              value={languageFilter}
+              onChange={(event) =>
+                setLanguageFilter(event.target.value as "all" | Language)
+              }>
+              <option value="all">همه زبان‌ها</option>
+              {LANGUAGES.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="projects-filter-field">
+            <span>نوع پروژه</span>
+            <select
+              className="projects-filter"
+              value={featuredFilter}
+              onChange={(event) =>
+                setFeaturedFilter(event.target.value as FeaturedFilter)
+              }>
+              <option value="all">همه پروژه‌ها</option>
+              <option value="featured">فقط ویژه</option>
+              <option value="regular">غیر ویژه</option>
+            </select>
+          </label>
+          <label className="projects-filter-field">
+            <span>
+              <CalendarDays size={13} /> تاریخ انتشار
+            </span>
+            <select
+              className="projects-filter"
+              value={dateFilter}
+              onChange={(event) =>
+                setDateFilter(event.target.value as DateFilter)
+              }>
+              <option value="all">همه تاریخ‌ها</option>
+              <option value="7days">۷ روز اخیر</option>
+              <option value="30days">۳۰ روز اخیر</option>
+              <option value="thisYear">سال جاری</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            className="projects-secondary-button projects-reset-filters"
+            onClick={resetFilters}>
+            پاک کردن فیلترها
+          </button>
+        </div>
+      )}
+
+      <div className="projects-results-bar">
+        <span>
+          نمایش{" "}
+          <strong>
+            {rangeStart} تا {rangeEnd}
+          </strong>{" "}
+          از <strong>{filteredProjects.length}</strong> پروژه
+        </span>
+        <label>
+          تعداد در صفحه
+          <select
+            value={pageSize}
+            onChange={(event) => setPageSize(Number(event.target.value))}
+            aria-label="تعداد پروژه در صفحه">
+            <option value={8}>۸</option>
+            <option value={12}>۱۲</option>
+            <option value={24}>۲۴</option>
+            <option value={48}>۴۸</option>
+          </select>
+        </label>
       </div>
 
       {loading ? (
@@ -478,150 +848,192 @@ function ProjectsPage() {
           <p>
             {projects.length === 0
               ? "اولین پروژه را ثبت کن تا در این فهرست نمایش داده شود."
-              : "عبارت جست‌وجو یا فیلتر وضعیت را تغییر بده."}
+              : "عبارت جست‌وجو یا فیلترها را تغییر بده."}
           </p>
-          {projects.length === 0 && (
+          {projects.length === 0 ? (
             <button
+              type="button"
               className="projects-primary-button"
               onClick={openCreateModal}>
               <Plus size={17} />
               ایجاد اولین پروژه
             </button>
+          ) : (
+            <button
+              type="button"
+              className="projects-secondary-button"
+              onClick={resetFilters}>
+              پاک کردن فیلترها
+            </button>
           )}
         </div>
       ) : (
-        <div className="projects-grid">
-          {filteredProjects.map((project) => {
-            const translation =
-              project.translations.find((item) => item.language === "fa") ??
-              project.translations[0];
+        <>
+          <div
+            className={`projects-grid ${view === "list" ? "projects-list" : ""}`}>
+            {paginatedProjects.map((project) => {
+              const translation =
+                project.translations.find((item) => item.language === "fa") ??
+                project.translations[0];
 
-            return (
-              <article className="project-card" key={project.id}>
-                <div className="project-card-cover">
-                  {project.coverImage ? (
-                    <img
-                      src={project.coverImage}
-                      alt={translation?.title ?? project.slug}
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="project-cover-placeholder">
-                      <Code2 size={35} />
-                      <span>MEHDI LEILAEI</span>
-                    </div>
-                  )}
-
-                  <span
-                    className={`project-status ${project.published ? "published" : "draft"}`}>
-                    {project.published ? "منتشرشده" : "پیش‌نویس"}
-                  </span>
-
-                  {project.featured && (
-                    <span className="project-featured">
-                      <Star size={13} fill="currentColor" />
-                      ویژه
+              return (
+                <article className="project-card" key={project.id}>
+                  <div className="project-card-cover">
+                    {project.coverImage ? (
+                      <img
+                        src={resolveMediaUrl(project.coverImage)}
+                        alt={translation?.title ?? project.slug}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="project-cover-placeholder">
+                        <Code2 size={35} />
+                        <span>MEHDI LEILAEI</span>
+                      </div>
+                    )}
+                    <span
+                      className={`project-status ${project.published ? "published" : "draft"}`}>
+                      {project.published ? "منتشرشده" : "پیش‌نویس"}
                     </span>
-                  )}
-                </div>
-
-                <div className="project-card-body">
-                  <div className="project-card-title">
-                    <div>
-                      <h2>{translation?.title ?? "بدون عنوان فارسی"}</h2>
-                      <code>{project.slug}</code>
-                    </div>
-                    <span className="project-order">{project.sortOrder}</span>
-                  </div>
-
-                  <p className="project-summary">
-                    {translation?.summary ||
-                      translation?.description ||
-                      "توضیحاتی برای این پروژه ثبت نشده است."}
-                  </p>
-
-                  <div className="project-technologies">
-                    {(project.technologies ?? [])
-                      .slice(0, 5)
-                      .map((technology) => (
-                        <span key={technology}>{technology}</span>
-                      ))}
-                    {(project.technologies?.length ?? 0) > 5 && (
-                      <span>+{project.technologies!.length - 5}</span>
+                    {project.featured && (
+                      <span className="project-featured">
+                        <Star size={13} fill="currentColor" />
+                        ویژه
+                      </span>
                     )}
                   </div>
 
-                  <div className="project-languages">
-                    {LANGUAGES.map(({ value, label }) => {
-                      const exists = project.translations.some(
-                        (item) => item.language === value,
-                      );
+                  <div className="project-card-body">
+                    <div className="project-card-title">
+                      <div>
+                        <h2>{translation?.title ?? "بدون عنوان فارسی"}</h2>
+                        <code>{project.slug}</code>
+                        {project.publishedAt && (
+                          <span className="project-published-date">
+                            <CalendarDays size={12} />
+                            {formatPublishedDate(project.publishedAt)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="project-order">{project.sortOrder}</span>
+                    </div>
 
-                      return (
-                        <span
-                          key={value}
-                          className={exists ? "language-exists" : ""}
-                          title={`${label}: ${exists ? "ثبت شده" : "ثبت نشده"}`}>
-                          {value.toUpperCase()}
-                        </span>
-                      );
-                    })}
-                  </div>
+                    <p className="project-summary">
+                      {translation?.summary ||
+                        translation?.description ||
+                        "توضیحاتی برای این پروژه ثبت نشده است."}
+                    </p>
 
-                  <div className="project-card-footer">
-                    <div className="project-links">
-                      {project.demoUrl && (
-                        <a
-                          href={project.demoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label="مشاهده دمو"
-                          title="مشاهده دمو">
-                          <ExternalLink size={16} />
-                        </a>
-                      )}
-                      {project.repositoryUrl && (
-                        <a
-                          href={project.repositoryUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label="مشاهده مخزن"
-                          title="مشاهده مخزن">
-                          <Code2 size={16} />
-                        </a>
+                    <div className="project-technologies">
+                      {(project.technologies ?? [])
+                        .slice(0, 5)
+                        .map((technology) => (
+                          <span key={technology}>{technology}</span>
+                        ))}
+                      {(project.technologies?.length ?? 0) > 5 && (
+                        <span>+{project.technologies!.length - 5}</span>
                       )}
                     </div>
 
-                    <div className="project-card-actions">
-                      <button
-                        className="project-edit-button"
-                        onClick={() => openEditModal(project)}>
-                        <Pencil size={15} />
-                        ویرایش
-                      </button>
-                      <button
-                        className="project-delete-button"
-                        onClick={() => void handleDelete(project)}
-                        aria-label={`حذف ${translation?.title ?? project.slug}`}
-                        title="حذف پروژه">
-                        <Trash2 size={16} />
-                      </button>
+                    <div className="project-languages">
+                      {LANGUAGES.map(({ value, label }) => {
+                        const exists = project.translations.some(
+                          (item) => item.language === value,
+                        );
+                        return (
+                          <span
+                            key={value}
+                            className={exists ? "language-exists" : ""}
+                            title={`${label}: ${exists ? "ثبت شده" : "ثبت نشده"}`}>
+                            {value.toUpperCase()}
+                          </span>
+                        );
+                      })}
+                    </div>
+
+                    <div className="project-card-footer">
+                      <div className="project-links">
+                        {project.demoUrl && (
+                          <a
+                            href={project.demoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="مشاهده دمو"
+                            title="مشاهده دمو">
+                            <ExternalLink size={16} />
+                          </a>
+                        )}
+                        {project.repositoryUrl && (
+                          <a
+                            href={project.repositoryUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="مشاهده مخزن"
+                            title="مشاهده مخزن">
+                            <Code2 size={16} />
+                          </a>
+                        )}
+                      </div>
+                      <div className="project-card-actions">
+                        <button
+                          type="button"
+                          className="project-edit-button"
+                          onClick={() => openEditModal(project)}>
+                          <Pencil size={15} />
+                          ویرایش
+                        </button>
+                        <button
+                          type="button"
+                          className="project-delete-button"
+                          onClick={() => void handleDelete(project)}
+                          aria-label={`حذف ${translation?.title ?? project.slug}`}
+                          title="حذف پروژه">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                </article>
+              );
+            })}
+          </div>
+
+          {totalPages > 1 && (
+            <nav
+              className="projects-pagination"
+              aria-label="صفحه‌بندی پروژه‌ها">
+              <button
+                type="button"
+                className="projects-icon-button"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page === 1}
+                aria-label="صفحه قبلی">
+                <ChevronRight size={17} />
+              </button>
+              <span>
+                صفحه <strong>{page}</strong> از {totalPages}
+              </span>
+              <button
+                type="button"
+                className="projects-icon-button"
+                onClick={() =>
+                  setPage((current) => Math.min(totalPages, current + 1))
+                }
+                disabled={page === totalPages}
+                aria-label="صفحه بعدی">
+                <ChevronLeft size={17} />
+              </button>
+            </nav>
+          )}
+        </>
       )}
 
       {modalOpen && (
         <div
           className="projects-modal-backdrop"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !saving) {
+            if (event.target === event.currentTarget && !saving)
               setModalOpen(false);
-            }
           }}>
           <section
             className="projects-modal"
@@ -639,10 +1051,9 @@ function ProjectsPage() {
                   {editingProject ? "ویرایش پروژه" : "ایجاد پروژه جدید"}
                 </h2>
               </div>
-
               <button
-                className="projects-icon-button"
                 type="button"
+                className="projects-icon-button"
                 onClick={() => setModalOpen(false)}
                 disabled={saving}
                 aria-label="بستن فرم">
@@ -666,7 +1077,6 @@ function ProjectsPage() {
                   />
                   <small>برای آدرس پروژه استفاده می‌شود.</small>
                 </label>
-
                 <label className="projects-field">
                   <span>ترتیب نمایش</span>
                   <input
@@ -680,20 +1090,46 @@ function ProjectsPage() {
                     }
                   />
                 </label>
-
-                <label className="projects-field projects-field-wide">
-                  <span>آدرس تصویر کاور</span>
-                  <input
-                    type="url"
-                    value={form.coverImage}
-                    onChange={(event) =>
-                      updateField("coverImage", event.target.value)
-                    }
-                    placeholder="https://example.com/cover.webp"
-                    dir="ltr"
-                  />
-                </label>
-
+                <div className="projects-field projects-field-wide projects-cover-upload-field">
+                  <span>تصویر کاور پروژه</span>
+                  <label className="projects-upload-button">
+                    {uploadingCover ? (
+                      <LoaderCircle size={17} className="projects-spin" />
+                    ) : (
+                      <UploadCloud size={17} />
+                    )}
+                    {uploadingCover
+                      ? "در حال آپلود تصویر..."
+                      : "انتخاب و آپلود تصویر"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handleCoverUpload}
+                      disabled={uploadingCover || saving}
+                    />
+                  </label>
+                  <small>
+                    فرمت‌های JPG، PNG، WEBP و GIF؛ حداکثر ۱۰ مگابایت.
+                  </small>
+                  {form.coverImage && (
+                    <div className="projects-cover-preview">
+                      <img
+                        src={resolveMediaUrl(form.coverImage)}
+                        alt="پیش‌نمایش تصویر کاور"
+                      />
+                      <div className="projects-cover-preview-info">
+                        <span>تصویر انتخاب‌شده</span>
+                        <code dir="ltr">{form.coverImage}</code>
+                        <button
+                          type="button"
+                          className="projects-secondary-button"
+                          onClick={() => updateField("coverImage", "")}>
+                          حذف تصویر
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <label className="projects-field">
                   <span>لینک دمو</span>
                   <input
@@ -706,7 +1142,6 @@ function ProjectsPage() {
                     dir="ltr"
                   />
                 </label>
-
                 <label className="projects-field">
                   <span>لینک مخزن کد</span>
                   <input
@@ -719,7 +1154,6 @@ function ProjectsPage() {
                     dir="ltr"
                   />
                 </label>
-
                 <label className="projects-field projects-field-wide">
                   <span>فناوری‌ها</span>
                   <input
@@ -745,7 +1179,6 @@ function ProjectsPage() {
                   />
                   <span>پروژه ویژه</span>
                 </label>
-
                 <label>
                   <input
                     type="checkbox"
@@ -799,7 +1232,6 @@ function ProjectsPage() {
                       }
                     />
                   </label>
-
                   <label className="projects-field projects-field-wide">
                     <span>خلاصه</span>
                     <textarea
@@ -810,7 +1242,6 @@ function ProjectsPage() {
                       }
                     />
                   </label>
-
                   <label className="projects-field projects-field-wide">
                     <span>توضیحات {activeLanguage === "fa" ? "*" : ""}</span>
                     <textarea
@@ -822,7 +1253,6 @@ function ProjectsPage() {
                       }
                     />
                   </label>
-
                   <label className="projects-field projects-field-wide">
                     <span>محتوای کامل (اختیاری)</span>
                     <textarea
@@ -833,7 +1263,6 @@ function ProjectsPage() {
                       }
                     />
                   </label>
-
                   <label className="projects-field">
                     <span>نقش من در پروژه</span>
                     <input
@@ -843,7 +1272,6 @@ function ProjectsPage() {
                       }
                     />
                   </label>
-
                   <label className="projects-field">
                     <span>عنوان سئو</span>
                     <input
@@ -853,7 +1281,6 @@ function ProjectsPage() {
                       }
                     />
                   </label>
-
                   <label className="projects-field projects-field-wide">
                     <span>توضیحات سئو</span>
                     <textarea
@@ -876,15 +1303,15 @@ function ProjectsPage() {
 
               <footer className="projects-form-footer">
                 <button
-                  className="projects-secondary-button"
                   type="button"
+                  className="projects-secondary-button"
                   onClick={() => setModalOpen(false)}
                   disabled={saving}>
                   انصراف
                 </button>
                 <button
-                  className="projects-primary-button"
                   type="submit"
+                  className="projects-primary-button"
                   disabled={saving}>
                   {saving ? (
                     <LoaderCircle size={17} className="projects-spin" />

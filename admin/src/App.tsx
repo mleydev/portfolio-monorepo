@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import "./App.css";
+import ProjectsPage from "./features/projects/ProjectsPage";
 
 type NavItem = {
   label: string;
@@ -36,8 +37,8 @@ const navigation: { title: string; items: NavItem[] }[] = [
     title: "عمومی",
     items: [
       { label: "داشبورد", icon: LayoutDashboard },
-      { label: "پروژه‌ها", icon: BriefcaseBusiness, count: 6 },
-      { label: "مقالات وبلاگ", icon: FileText, count: 12 },
+      { label: "پروژه‌ها", icon: BriefcaseBusiness },
+      { label: "مقالات وبلاگ", icon: FileText },
       { label: "مهارت‌ها", icon: Code2 },
       { label: "سوابق کاری", icon: Activity },
       { label: "زبان‌ها", icon: Globe2 },
@@ -46,7 +47,7 @@ const navigation: { title: string; items: NavItem[] }[] = [
   {
     title: "مدیریت محتوا",
     items: [
-      { label: "نظرات و بازخوردها", icon: MessageSquare, count: 3 },
+      { label: "نظرات و بازخوردها", icon: MessageSquare },
       { label: "نظرسنجی‌ها", icon: Users },
       { label: "رسانه‌ها", icon: BookOpen },
     ],
@@ -320,7 +321,9 @@ function App() {
               <p className="page-subtitle">
                 {activePage === "داشبورد"
                   ? "از اینجا می‌تونی وضعیت سایت و محتوای خودت رو مدیریت کنی."
-                  : `بخش ${activePage} انتخاب شده است. اتصال امکانات این بخش در مراحل بعدی انجام می‌شود.`}
+                  : activePage === "پروژه‌ها"
+                    ? "نمونه‌کارهایت را ایجاد کن، ویرایش کن و وضعیت انتشار آن‌ها را مدیریت کن."
+                    : `بخش ${activePage} انتخاب شده است. اتصال امکانات این بخش در مراحل بعدی انجام می‌شود.`}
               </p>
             </div>
             <div className="welcome-actions">
@@ -339,7 +342,9 @@ function App() {
             </div>
           </section>
 
-          {activePage === "داشبورد" ? (
+          {activePage === "پروژه‌ها" ? (
+            <ProjectsPage />
+          ) : activePage === "داشبورد" ? (
             <>
               <section className="stats-grid" aria-label="آمار کلی">
                 {stats.map((stat) => {
