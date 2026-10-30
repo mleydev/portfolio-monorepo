@@ -128,6 +128,38 @@ const activities = [
   },
 ];
 
+type Language = "fa" | "en" | "tr" | "ar";
+
+type ProfileTranslation = {
+  language: Language;
+  fullName: string;
+  role: string;
+  bio: string;
+};
+
+type AdminProfile = {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  location: string | null;
+  avatar: string | null;
+  resumeUrl: string | null;
+  translations: ProfileTranslation[];
+};
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api/v1";
+
+const resolveMediaUrl = (url: string | null) => {
+  if (!url) return "";
+
+  try {
+    return new URL(url, new URL(API_BASE_URL).origin).toString();
+  } catch {
+    return url;
+  }
+};
+
 function App() {
   const [activePage, setActivePage] = useState(() => {
     return localStorage.getItem("admin-active-page") ?? "داشبورد";
@@ -162,6 +194,51 @@ function App() {
 
   const pageTitle = activePage === "داشبورد" ? "نمای کلی" : activePage;
 
+  const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
+
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAdminProfile = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin/profile`, {
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch profile");
+        }
+
+        const data: AdminProfile[] | AdminProfile = await response.json();
+
+        const profile = Array.isArray(data) ? data[0] : data;
+
+        if (profile) {
+          setAdminProfile(profile);
+        }
+      } catch (error) {
+        console.error("Could not load admin profile:", error);
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    void fetchAdminProfile();
+  }, []);
+
+  const profileTranslation =
+    adminProfile?.translations?.find(
+      (translation) => translation.language === "fa",
+    ) ??
+    adminProfile?.translations?.find(
+      (translation) => translation.language === "en",
+    );
+
+  const profileName = profileTranslation?.fullName ?? "مهدی لیلایی";
+  const profileRole = profileTranslation?.role ?? "مدیر سیستم";
+
+  const profileAvatar = resolveMediaUrl(adminProfile?.avatar ?? null);
+
   return (
     <div
       className={`admin-app ${darkMode ? "theme-dark" : "theme-light"}`}
@@ -183,7 +260,12 @@ function App() {
             setActivePage("داشبورد");
             setSidebarOpen(false);
           }}>
-          <span className="brand-mark">ML</span>
+          <span className="brand-mark brand-logo">
+            <img
+              src="/Neon M&L Portfolio Brand Identity.png"
+              alt="Mehdi Leilaei Logo"
+            />
+          </span>
           <span className="brand-copy">
             <strong>MEHDI LEILAEI</strong>
             <small>پنل مدیریت شخصی</small>
@@ -199,14 +281,31 @@ function App() {
           </button>
         </a>
 
-        <div className="sidebar-profile">
-          <div className="profile-avatar">م</div>
-          <div className="profile-copy">
-            <strong>مهدی لیلایی</strong>
-            <span>مدیر ارشد · Owner</span>
+        <button
+          type="button"
+          className="sidebar-profile"
+          onClick={() => setActivePage("پروفایل")}>
+          <div className="profile-avatar">
+            {profileAvatar ? (
+              <img
+                src={profileAvatar}
+                alt={profileName}
+                onError={(event) => {
+                  event.currentTarget.style.display = "none";
+                }}
+              />
+            ) : (
+              profileName.charAt(0)
+            )}
           </div>
+
+          <div className="profile-copy">
+            <strong>{profileLoading ? "در حال دریافت..." : profileName}</strong>
+            <span>{profileRole}</span>
+          </div>
+
           <span className="online-dot" />
-        </div>
+        </button>
 
         <nav className="sidebar-nav" aria-label="منوی اصلی">
           {navigation.map((group) => (
@@ -298,12 +397,29 @@ function App() {
             <div className="topbar-divider" />
             <button
               className="topbar-user"
-              onClick={() => setActivePage("پروفایل")}>
-              <span className="profile-avatar profile-avatar-small">م</span>
-              <span className="topbar-user-copy">
-                <strong>مهدی لیلایی</strong>
-                <small>مدیر سیستم</small>
+              onClick={() => setActivePage("پروفایل")}
+              type="button">
+              <span className="profile-avatar profile-avatar-small">
+                {profileAvatar ? (
+                  <img
+                    src={profileAvatar}
+                    alt={profileName}
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  profileName.charAt(0)
+                )}
               </span>
+
+              <span className="topbar-user-copy">
+                <strong>
+                  {profileLoading ? "در حال دریافت..." : profileName}
+                </strong>
+                <small>{profileRole}</small>
+              </span>
+
               <ChevronDown size={15} />
             </button>
           </div>

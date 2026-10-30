@@ -1253,3 +1253,70 @@ body,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Brand logo */
+.brand-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: transparent;
+  border: none;
+  flex-shrink: 0;
+}
+
+.brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Real profile images */
+.sidebar-profile {
+  width: 100%;
+  text-align: right;
+  cursor: pointer;
+  font: inherit;
+}
+
+.profile-avatar {
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.topbar-user-copy {
+  min-width: 0;
+}
+
+.topbar-user-copy strong,
+.topbar-user-copy small,
+.profile-copy strong,
+.profile-copy span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-profile:hover {
+  border-color: var(--accent);
+}
+
+.brand-logo img {
+  transition: transform 0.25s ease;
+}
+
+.brand:hover .brand-logo img {
+  transform: scale(1.06);
+}
