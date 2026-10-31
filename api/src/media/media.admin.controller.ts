@@ -27,6 +27,7 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { MediaService } from './media.service';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { DocumentConversionService } from './document-conversion.service';
 
 @ApiTags('Admin Media')
 @ApiBearerAuth('JWT-auth')
@@ -34,7 +35,10 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 @RequirePermission('media')
 @Controller('admin/media')
 export class MediaAdminController {
-  constructor(private readonly mediaService: MediaService) {}
+  constructor(
+    private readonly mediaService: MediaService,
+    private readonly documentConversionService: DocumentConversionService,
+  ) {}
 
   @UseGuards(JwtAuthGuard, PermissionsGuard, ThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
@@ -87,5 +91,35 @@ export class MediaAdminController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.mediaService.remove(id);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('convert-document')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 10 * 1024 * 1024,
+        files: 1,
+      },
+    }),
+  )
+  async convertDocument(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('A document file is required.');
+    }
+
+    return this.documentConversionService.convert(file);
   }
 }

@@ -101,6 +101,56 @@ export class MediaService {
     }
   }
 
+  async saveEmbeddedImage(buffer: Buffer, originalName: string) {
+    if (!buffer?.length || buffer.length > 5 * 1024 * 1024) {
+      throw new BadRequestException('Invalid embedded image size.');
+    }
+
+    const detected = await fileTypeFromBuffer(buffer);
+    const config = ALLOWED_TYPES[MediaType.IMAGE];
+
+    if (
+      !detected ||
+      !config.mime.includes(detected.mime) ||
+      !config.extensions.includes(`.${detected.ext}`)
+    ) {
+      throw new BadRequestException('Unsupported embedded image format.');
+    }
+
+    const safeOriginalName = basename(originalName).slice(0, 255);
+    const storageKey = `${randomUUID()}.${detected.ext}`;
+    const filePath = join(this.uploadDir, storageKey);
+
+    await mkdir(this.uploadDir, { recursive: true });
+
+    try {
+      await writeFile(filePath, buffer, { flag: 'wx' });
+
+      const dimensions = this.getImageDimensions(buffer, detected.mime);
+
+      const media = await this.prisma.media.create({
+        data: {
+          type: MediaType.IMAGE,
+          url: `/api/v1/media/${storageKey}`,
+          storageKey,
+          originalName: safeOriginalName,
+          mimeType: detected.mime,
+          sizeBytes: BigInt(buffer.length),
+          width: dimensions?.width ?? null,
+          height: dimensions?.height ?? null,
+        },
+      });
+
+      return {
+        ...media,
+        sizeBytes: media.sizeBytes?.toString() ?? null,
+      };
+    } catch (error) {
+      await unlink(filePath).catch(() => undefined);
+      throw error;
+    }
+  }
+
   async findAll(type?: MediaType) {
     if (type && !Object.values(MediaType).includes(type)) {
       throw new BadRequestException('Unsupported media type.');

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Check,
+  FileText,
   ImagePlus,
   LoaderCircle,
   Save,
@@ -15,6 +16,13 @@ import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import CharacterCount from "@tiptap/extension-character-count";
+import { Extension } from "@tiptap/core";
+import { TextStyle } from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
+import Highlight from "@tiptap/extension-highlight";
+import TextAlign from "@tiptap/extension-text-align";
+import Subscript from "@tiptap/extension-subscript";
+import Superscript from "@tiptap/extension-superscript";
 
 import api from "../../lib/api";
 import type {
@@ -56,6 +64,48 @@ interface MediaItem {
   alt?: string | null;
   type?: string;
 }
+
+interface DocumentConversionResponse {
+  filename: string;
+  format: string;
+  html: string;
+}
+
+const TextFormatting = Extension.create({
+  name: "textFormatting",
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: ["textStyle"],
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element) => element.style.fontSize || null,
+            renderHTML: (attributes) => {
+              if (!attributes.fontSize) return {};
+
+              return {
+                style: `font-size: ${attributes.fontSize}`,
+              };
+            },
+          },
+          fontFamily: {
+            default: null,
+            parseHTML: (element) => element.style.fontFamily || null,
+            renderHTML: (attributes) => {
+              if (!attributes.fontFamily) return {};
+
+              return {
+                style: `font-family: ${attributes.fontFamily}`,
+              };
+            },
+          },
+        },
+      },
+    ];
+  },
+});
 
 const LANGUAGES: {
   value: BlogLanguage;
@@ -164,6 +214,32 @@ const getErrorMessage = (error: unknown) => {
     : "دریافت اطلاعات با خطا مواجه شد.";
 };
 
+const createEditorExtensions = (placeholder = "") => [
+  StarterKit,
+  Underline,
+  TextStyle,
+  TextFormatting,
+  Color,
+  Highlight.configure({
+    multicolor: true,
+  }),
+  TextAlign.configure({
+    types: ["heading", "paragraph"],
+  }),
+  Subscript,
+  Superscript,
+  Link.configure({
+    openOnClick: false,
+    autolink: true,
+    defaultProtocol: "https",
+  }),
+  Image,
+  Placeholder.configure({
+    placeholder,
+  }),
+  CharacterCount,
+];
+
 const BlogFormModal = ({
   mode,
   article,
@@ -172,12 +248,22 @@ const BlogFormModal = ({
 }: BlogFormModalProps) => {
   const isReadOnly = mode === "view";
   const isEditing = mode === "edit";
+
   const editorImageInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
 
   const [activeLanguage, setActiveLanguage] = useState<BlogLanguage>("fa");
   const [translations, setTranslations] = useState(
     getInitialTranslations(article),
   );
+
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  const previewEditor = useEditor({
+    extensions: createEditorExtensions(),
+    content: EMPTY_CONTENT,
+    editable: false,
+  });
 
   const [status, setStatus] = useState<BlogArticleStatus>(
     article?.status ?? "DRAFT",
@@ -207,7 +293,10 @@ const BlogFormModal = ({
 
   const [coverMediaId, setCoverMediaId] = useState(article?.coverMediaId ?? "");
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+
   const [uploading, setUploading] = useState(false);
+  const [convertingDocument, setConvertingDocument] = useState(false);
+
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -220,20 +309,7 @@ const BlogFormModal = ({
   );
 
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      Link.configure({
-        openOnClick: false,
-        autolink: true,
-        defaultProtocol: "https",
-      }),
-      Image,
-      Placeholder.configure({
-        placeholder: "محتوای مقاله را اینجا بنویسید...",
-      }),
-      CharacterCount,
-    ],
+    extensions: createEditorExtensions("محتوای مقاله را اینجا بنویسید..."),
     content: translations.fa.content as never,
     editable: !isReadOnly,
     onUpdate: ({ editor: currentEditor }) => {
@@ -372,6 +448,191 @@ const BlogFormModal = ({
     }
   };
 
+  const handleEditorImageUpload = async (file?: File) => {
+    if (!file || !editor) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("فقط فایل تصویری قابل آپلود است.");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", "IMAGE");
+
+    setUploading(true);
+    setError("");
+
+    try {
+      const response = await api.post<MediaItem>(
+        "/admin/media/upload",
+        formData,
+      );
+
+      const uploadedMedia = response.data;
+      const imageUrl = resolveMediaUrl(uploadedMedia.url);
+
+      setMedia((current) => [uploadedMedia, ...current]);
+
+      editor
+        .chain()
+        .focus()
+        .setImage({
+          src: imageUrl,
+          alt:
+            uploadedMedia.alt ?? uploadedMedia.originalName ?? "Article image",
+        })
+        .run();
+    } catch (uploadError) {
+      setError(getErrorMessage(uploadError));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDocumentImport = async (file?: File) => {
+    if (!file || !editor) return;
+
+    const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+
+    if (![".docx", ".pdf"].includes(extension)) {
+      setError("فقط فایل‌های Word با فرمت DOCX و فایل PDF قابل تبدیل هستند.");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("حجم فایل نباید بیشتر از ۱۰ مگابایت باشد.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setConvertingDocument(true);
+    setError("");
+
+    try {
+      const response = await api.post<DocumentConversionResponse>(
+        "/admin/media/convert-document",
+        formData,
+      );
+
+      if (!response.data.html?.trim()) {
+        throw new Error("محتوای قابل استفاده‌ای از فایل استخراج نشد.");
+      }
+
+      // Resolve relative media URLs before inserting the HTML.
+      const parsedDocument = new DOMParser().parseFromString(
+        response.data.html,
+        "text/html",
+      );
+
+      parsedDocument.querySelectorAll("img[src]").forEach((image) => {
+        const src = image.getAttribute("src");
+
+        if (src) {
+          image.setAttribute("src", resolveMediaUrl(src));
+        }
+      });
+
+      const html = parsedDocument.body.innerHTML;
+
+      if (!html.trim()) {
+        throw new Error("محتوای قابل استفاده‌ای از فایل استخراج نشد.");
+      }
+
+      // Replace the current editor content with the imported document.
+      editor.commands.setContent(html);
+
+      setError("");
+    } catch (conversionError) {
+      setError(getErrorMessage(conversionError));
+    } finally {
+      setConvertingDocument(false);
+    }
+  };
+
+  const handleOpenPreview = () => {
+    if (!editor || !previewEditor) return;
+
+    previewEditor.commands.setContent(editor.getJSON() as never);
+    previewEditor.setEditable(false);
+
+    setPreviewOpen(true);
+  };
+
+  const changeFontSize = (size: string) => {
+    if (!editor) return;
+
+    if (!size) {
+      editor.chain().focus().setMark("textStyle", { fontSize: null }).run();
+
+      return;
+    }
+
+    editor.chain().focus().setMark("textStyle", { fontSize: size }).run();
+  };
+
+  const changeFontFamily = (fontFamily: string) => {
+    if (!editor) return;
+
+    if (!fontFamily) {
+      editor.chain().focus().setMark("textStyle", { fontFamily: null }).run();
+
+      return;
+    }
+
+    editor.chain().focus().setMark("textStyle", { fontFamily }).run();
+  };
+
+  const changeTextColor = (color: string) => {
+    editor?.chain().focus().setColor(color).run();
+  };
+
+  const changeHighlightColor = (color: string) => {
+    if (!editor) return;
+
+    if (!color) {
+      editor.chain().focus().unsetHighlight().run();
+      return;
+    }
+
+    editor.chain().focus().toggleHighlight({ color }).run();
+  };
+
+  const clearFormatting = () => {
+    editor?.chain().focus().unsetAllMarks().clearNodes().run();
+  };
+
+  const setParagraphAlignment = (
+    alignment: "left" | "center" | "right" | "justify",
+  ) => {
+    editor?.chain().focus().setTextAlign(alignment).run();
+  };
+
+  const increaseListIndent = () => {
+    editor?.chain().focus().sinkListItem("listItem").run();
+  };
+
+  const decreaseListIndent = () => {
+    editor?.chain().focus().liftListItem("listItem").run();
+  };
+
+  const insertCodeBlock = () => {
+    if (!editor) return;
+
+    editor.chain().focus().toggleCodeBlock().run();
+  };
+
+  const insertInlineCode = () => {
+    editor?.chain().focus().toggleCode().run();
+  };
+
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -445,6 +706,7 @@ const BlogFormModal = ({
     if (!editor || isReadOnly) return;
 
     const previousUrl = editor.getAttributes("link").href as string | undefined;
+
     const url = window.prompt(
       "آدرس لینک را وارد کنید:",
       previousUrl ?? "https://",
@@ -460,68 +722,21 @@ const BlogFormModal = ({
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   };
 
-  const addImageToContent = () => {
-    if (!editor || isReadOnly) return;
+  // const addImageToContent = () => {
+  //   if (!editor || isReadOnly) return;
 
-    const url = window.prompt("آدرس تصویر را وارد کنید:");
+  //   const url = window.prompt("آدرس تصویر را وارد کنید:");
 
-    if (url?.trim()) {
-      editor.chain().focus().setImage({ src: url.trim() }).run();
-    }
-  };
+  //   if (url?.trim()) {
+  //     editor.chain().focus().setImage({ src: url.trim() }).run();
+  //   }
+  // };
 
   const title = isReadOnly
     ? "مشاهده مقاله"
     : isEditing
       ? "ویرایش مقاله"
       : "ایجاد مقاله جدید";
-
-  const handleEditorImageUpload = async (file?: File) => {
-    if (!file || !editor) return;
-
-    if (!file.type.startsWith("image/")) {
-      setError("فقط فایل تصویری قابل آپلود است.");
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      setError("حجم تصویر نباید بیشتر از ۱۰ مگابایت باشد.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("type", "IMAGE");
-
-    setUploading(true);
-    setError("");
-
-    try {
-      const response = await api.post<MediaItem>(
-        "/admin/media/upload",
-        formData,
-      );
-
-      const uploadedMedia = response.data;
-      const imageUrl = resolveMediaUrl(uploadedMedia.url);
-
-      setMedia((current) => [uploadedMedia, ...current]);
-
-      editor
-        .chain()
-        .focus()
-        .setImage({
-          src: imageUrl,
-          alt:
-            uploadedMedia.alt ?? uploadedMedia.originalName ?? "Article image",
-        })
-        .run();
-    } catch (uploadError) {
-      setError(getErrorMessage(uploadError));
-    } finally {
-      setUploading(false);
-    }
-  };
 
   return (
     <div className="blog-modal-backdrop" onMouseDown={onClose}>
@@ -555,11 +770,20 @@ const BlogFormModal = ({
           <div className="blog-form-layout">
             <main className="blog-form-main">
               <section className="blog-form-section">
-                <div className="blog-form-section-heading">
+                <div className="blog-form-section-heading blog-content-heading">
                   <div>
                     <h3>محتوای مقاله</h3>
                     <p>عنوان، آدرس و محتوای هر زبان را وارد کنید.</p>
                   </div>
+
+                  <button
+                    type="button"
+                    className="blog-preview-button"
+                    onClick={handleOpenPreview}
+                    disabled={!editor || !previewEditor}>
+                    <FileText size={16} />
+                    پیش‌نمایش مقاله
+                  </button>
                 </div>
 
                 <div className="blog-language-tabs">
@@ -635,36 +859,156 @@ const BlogFormModal = ({
 
                     {!isReadOnly && editor && (
                       <div className="blog-editor-toolbar" dir="rtl">
+                        {/* Font family */}
+                        <select
+                          title="نوع فونت"
+                          defaultValue=""
+                          onChange={(event) =>
+                            changeFontFamily(event.target.value)
+                          }>
+                          <option value="">فونت</option>
+                          <option value="Arial">Arial</option>
+                          <option value="Tahoma">Tahoma</option>
+                          <option value="Verdana">Verdana</option>
+                          <option value="Georgia">Georgia</option>
+                          <option value="monospace">Monospace</option>
+                        </select>
+
+                        {/* Font size */}
+                        <select
+                          title="اندازه فونت"
+                          defaultValue=""
+                          onChange={(event) =>
+                            changeFontSize(event.target.value)
+                          }>
+                          <option value="">اندازه</option>
+                          <option value="12px">12</option>
+                          <option value="14px">14</option>
+                          <option value="16px">16</option>
+                          <option value="18px">18</option>
+                          <option value="20px">20</option>
+                          <option value="24px">24</option>
+                          <option value="28px">28</option>
+                          <option value="32px">32</option>
+                          <option value="36px">36</option>
+                        </select>
+
+                        <span className="blog-toolbar-divider" />
+
+                        {/* Text formatting */}
                         <button
                           type="button"
+                          title="ضخیم"
                           className={editor.isActive("bold") ? "active" : ""}
                           onClick={() =>
                             editor.chain().focus().toggleBold().run()
-                          }
-                          title="ضخیم">
+                          }>
                           <strong>B</strong>
                         </button>
+
                         <button
                           type="button"
+                          title="ایتالیک"
                           className={editor.isActive("italic") ? "active" : ""}
                           onClick={() =>
                             editor.chain().focus().toggleItalic().run()
-                          }
-                          title="ایتالیک">
+                          }>
                           <em>I</em>
                         </button>
+
                         <button
                           type="button"
+                          title="زیرخط"
                           className={
                             editor.isActive("underline") ? "active" : ""
                           }
                           onClick={() =>
                             editor.chain().focus().toggleUnderline().run()
-                          }
-                          title="زیرخط">
+                          }>
                           <u>U</u>
                         </button>
-                        <span />
+
+                        <button
+                          type="button"
+                          title="خط‌خورده"
+                          className={editor.isActive("strike") ? "active" : ""}
+                          onClick={() =>
+                            editor.chain().focus().toggleStrike().run()
+                          }>
+                          <s>S</s>
+                        </button>
+
+                        <button
+                          type="button"
+                          title="زیرنویس"
+                          className={
+                            editor.isActive("subscript") ? "active" : ""
+                          }
+                          onClick={() =>
+                            editor.chain().focus().toggleSubscript().run()
+                          }>
+                          X₂
+                        </button>
+
+                        <button
+                          type="button"
+                          title="بالانویس"
+                          className={
+                            editor.isActive("superscript") ? "active" : ""
+                          }
+                          onClick={() =>
+                            editor.chain().focus().toggleSuperscript().run()
+                          }>
+                          X²
+                        </button>
+
+                        <span className="blog-toolbar-divider" />
+
+                        {/* Text color */}
+                        <label className="blog-toolbar-color" title="رنگ متن">
+                          <strong>A</strong>
+                          <input
+                            type="color"
+                            defaultValue="#334155"
+                            onChange={(event) =>
+                              changeTextColor(event.target.value)
+                            }
+                          />
+                        </label>
+
+                        {/* Highlight */}
+                        <label
+                          className="blog-toolbar-color"
+                          title="رنگ پس‌زمینه متن">
+                          <span>▰</span>
+                          <input
+                            type="color"
+                            defaultValue="#fff176"
+                            onChange={(event) =>
+                              changeHighlightColor(event.target.value)
+                            }
+                          />
+                        </label>
+
+                        <button
+                          type="button"
+                          title="حذف هایلایت"
+                          onClick={() =>
+                            editor.chain().focus().unsetHighlight().run()
+                          }>
+                          Hx
+                        </button>
+
+                        <button
+                          type="button"
+                          title="پاک کردن قالب‌بندی"
+                          onClick={clearFormatting}>
+                          Tx
+                        </button>
+
+                        <span className="blog-toolbar-divider" />
+
+                        {/* Headings */}
                         <button
                           type="button"
                           className={
@@ -672,6 +1016,7 @@ const BlogFormModal = ({
                               ? "active"
                               : ""
                           }
+                          title="عنوان سطح ۲"
                           onClick={() =>
                             editor
                               .chain()
@@ -681,6 +1026,7 @@ const BlogFormModal = ({
                           }>
                           H2
                         </button>
+
                         <button
                           type="button"
                           className={
@@ -688,6 +1034,7 @@ const BlogFormModal = ({
                               ? "active"
                               : ""
                           }
+                          title="عنوان سطح ۳"
                           onClick={() =>
                             editor
                               .chain()
@@ -697,9 +1044,64 @@ const BlogFormModal = ({
                           }>
                           H3
                         </button>
-                        <span />
+
+                        <span className="blog-toolbar-divider" />
+
+                        {/* Paragraph alignment */}
                         <button
                           type="button"
+                          title="تراز راست"
+                          className={
+                            editor.isActive({ textAlign: "right" })
+                              ? "active"
+                              : ""
+                          }
+                          onClick={() => setParagraphAlignment("right")}>
+                          ≡ راست
+                        </button>
+
+                        <button
+                          type="button"
+                          title="تراز وسط"
+                          className={
+                            editor.isActive({ textAlign: "center" })
+                              ? "active"
+                              : ""
+                          }
+                          onClick={() => setParagraphAlignment("center")}>
+                          ≡ وسط
+                        </button>
+
+                        <button
+                          type="button"
+                          title="تراز چپ"
+                          className={
+                            editor.isActive({ textAlign: "left" })
+                              ? "active"
+                              : ""
+                          }
+                          onClick={() => setParagraphAlignment("left")}>
+                          ≡ چپ
+                        </button>
+
+                        <button
+                          type="button"
+                          title="تراز دوطرفه"
+                          className={
+                            editor.isActive({ textAlign: "justify" })
+                              ? "active"
+                              : ""
+                          }
+                          onClick={() => setParagraphAlignment("justify")}>
+                          ≡ دوطرفه
+                        </button>
+
+                        <span className="blog-toolbar-divider" />
+
+                        {/* Lists */}
+                        <button
+                          type="button"
+                          title="لیست نشانه‌دار"
                           className={
                             editor.isActive("bulletList") ? "active" : ""
                           }
@@ -708,8 +1110,10 @@ const BlogFormModal = ({
                           }>
                           • لیست
                         </button>
+
                         <button
                           type="button"
+                          title="لیست شماره‌دار"
                           className={
                             editor.isActive("orderedList") ? "active" : ""
                           }
@@ -718,15 +1122,57 @@ const BlogFormModal = ({
                           }>
                           1. لیست
                         </button>
-                        <span />
-                        <button type="button" onClick={addLink}>
+
+                        <button
+                          type="button"
+                          title="افزایش تورفتگی لیست"
+                          onClick={increaseListIndent}>
+                          ← تورفتگی
+                        </button>
+
+                        <button
+                          type="button"
+                          title="کاهش تورفتگی لیست"
+                          onClick={decreaseListIndent}>
+                          تورفتگی →
+                        </button>
+
+                        <span className="blog-toolbar-divider" />
+
+                        {/* Code */}
+                        <button
+                          type="button"
+                          title="کد داخل متن"
+                          className={editor.isActive("code") ? "active" : ""}
+                          onClick={insertInlineCode}>
+                          {"</>"}
+                        </button>
+
+                        <button
+                          type="button"
+                          title="بلوک کد"
+                          className={
+                            editor.isActive("codeBlock") ? "active" : ""
+                          }
+                          onClick={insertCodeBlock}>
+                          بلوک کد
+                        </button>
+
+                        <span className="blog-toolbar-divider" />
+
+                        {/* Link */}
+                        <button
+                          type="button"
+                          onClick={addLink}
+                          title="افزودن لینک">
                           لینک
                         </button>
+
+                        {/* Image upload */}
                         <button
                           type="button"
                           onClick={() => editorImageInputRef.current?.click()}
-                          disabled={uploading}
-                          className="flex items-center gap-1"
+                          disabled={uploading || convertingDocument}
                           title="آپلود تصویر از کامپیوتر">
                           {uploading ? (
                             <LoaderCircle className="blog-spin" size={14} />
@@ -741,7 +1187,7 @@ const BlogFormModal = ({
                           type="file"
                           accept="image/jpeg,image/png,image/webp,image/gif"
                           hidden
-                          disabled={uploading}
+                          disabled={uploading || convertingDocument}
                           onChange={(event) => {
                             void handleEditorImageUpload(
                               event.target.files?.[0],
@@ -749,13 +1195,51 @@ const BlogFormModal = ({
                             event.currentTarget.value = "";
                           }}
                         />
+
+                        {/* Word / PDF import */}
                         <button
                           type="button"
+                          onClick={() => documentInputRef.current?.click()}
+                          disabled={convertingDocument || uploading}
+                          title="تبدیل فایل Word یا PDF به محتوای مقاله">
+                          {convertingDocument ? (
+                            <LoaderCircle className="blog-spin" size={14} />
+                          ) : (
+                            <FileText size={14} />
+                          )}
+                          {convertingDocument
+                            ? "در حال تبدیل..."
+                            : "واردکردن سند"}
+                        </button>
+
+                        <input
+                          ref={documentInputRef}
+                          type="file"
+                          accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                          hidden
+                          disabled={convertingDocument || uploading}
+                          onChange={(event) => {
+                            void handleDocumentImport(event.target.files?.[0]);
+                            event.currentTarget.value = "";
+                          }}
+                        />
+
+                        {/* Horizontal rule */}
+                        <button
+                          type="button"
+                          title="جداکننده"
                           onClick={() =>
                             editor.chain().focus().setHorizontalRule().run()
                           }>
                           جداکننده
                         </button>
+                      </div>
+                    )}
+
+                    {convertingDocument && (
+                      <div className="blog-form-error" role="status">
+                        <LoaderCircle className="blog-spin" size={16} />
+                        <span>در حال استخراج و تبدیل محتوای سند...</span>
                       </div>
                     )}
 
@@ -1048,7 +1532,7 @@ const BlogFormModal = ({
               <button
                 type="submit"
                 className="blog-save-button"
-                disabled={saving || uploading}>
+                disabled={saving || uploading || convertingDocument}>
                 {saving ? (
                   <LoaderCircle className="blog-spin" size={17} />
                 ) : (
@@ -1063,6 +1547,104 @@ const BlogFormModal = ({
             )}
           </footer>
         </form>
+
+        {previewOpen && (
+          <div
+            className="blog-preview-backdrop"
+            onMouseDown={() => setPreviewOpen(false)}>
+            <section
+              className="blog-preview-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="پیش‌نمایش مقاله"
+              onMouseDown={(event) => event.stopPropagation()}>
+              <header className="blog-preview-header">
+                <div>
+                  <span className="blog-modal-eyebrow">ARTICLE PREVIEW</span>
+                  <h2>پیش‌نمایش مقاله</h2>
+                  <p>نمایش محتوای مقاله قبل از ذخیره و انتشار</p>
+                </div>
+
+                <button
+                  type="button"
+                  className="blog-modal-close"
+                  onClick={() => setPreviewOpen(false)}
+                  aria-label="بستن پیش‌نمایش">
+                  <X size={20} />
+                </button>
+              </header>
+
+              <div
+                className="blog-preview-body"
+                dir={
+                  LANGUAGES.find((item) => item.value === activeLanguage)
+                    ?.direction
+                }>
+                {selectedCover?.url && (
+                  <div className="blog-preview-cover">
+                    <img
+                      src={resolveMediaUrl(selectedCover.url)}
+                      alt={selectedCover.alt ?? currentTranslation.title}
+                    />
+                  </div>
+                )}
+
+                <article className="blog-preview-article">
+                  <div className="blog-preview-meta">
+                    <span>
+                      {
+                        LANGUAGES.find((item) => item.value === activeLanguage)
+                          ?.label
+                      }
+                    </span>
+
+                    <span>
+                      {status === "PUBLISHED"
+                        ? "منتشر شده"
+                        : status === "SCHEDULED"
+                          ? "زمان‌بندی شده"
+                          : status === "ARCHIVED"
+                            ? "بایگانی شده"
+                            : "پیش‌نویس"}
+                    </span>
+
+                    {featured && <span>مقاله ویژه</span>}
+                  </div>
+
+                  <h1 className="blog-preview-title">
+                    {currentTranslation.title || "عنوان مقاله"}
+                  </h1>
+
+                  {currentTranslation.excerpt && (
+                    <p className="blog-preview-excerpt">
+                      {currentTranslation.excerpt}
+                    </p>
+                  )}
+
+                  <div className="blog-preview-divider" />
+
+                  <div className="blog-preview-content">
+                    <EditorContent editor={previewEditor} />
+                  </div>
+                </article>
+              </div>
+
+              <footer className="blog-preview-footer">
+                <span>
+                  <Check size={15} />
+                  حالت فقط‌خواندنی
+                </span>
+
+                <button
+                  type="button"
+                  className="blog-save-button"
+                  onClick={() => setPreviewOpen(false)}>
+                  بازگشت به ویرایشگر
+                </button>
+              </footer>
+            </section>
+          </div>
+        )}
 
         {mediaPickerOpen && (
           <div
