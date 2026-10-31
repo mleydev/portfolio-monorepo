@@ -11,6 +11,14 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Serialize BigInt values in JSON responses
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .set('json replacer', (_key: string, value: unknown) =>
+      typeof value === 'bigint' ? value.toString() : value,
+    );
+
   // API versioning
   app.setGlobalPrefix('api/v1');
 
