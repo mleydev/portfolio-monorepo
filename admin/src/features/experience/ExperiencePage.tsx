@@ -16,6 +16,7 @@ import {
 
 import api from "../../lib/api";
 import "./ExperiencePage.css";
+import LocalizedDatePicker from "../../components/date-picker/LocalizedDatePicker";
 
 type Language = "fa" | "en" | "tr" | "ar";
 type StatusFilter = "all" | "enabled" | "disabled";
@@ -107,6 +108,32 @@ const formatDate = (value: string | null): string => {
     year: "numeric",
     month: "long",
   }).format(date);
+};
+
+const toISOString = (value: string): string | null => {
+  if (!value) return null;
+
+  // Convert Persian and Arabic digits to English digits.
+  const normalizedValue = value
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+
+  const [year, month, day] = normalizedValue
+    .slice(0, 10)
+    .split("-")
+    .map(Number);
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return date.toISOString();
 };
 
 const toDateInput = (value: string | null): string => {
@@ -316,8 +343,8 @@ export default function ExperiencePage() {
     const payload = {
       organization: form.organization.trim(),
       position: form.position.trim() || null,
-      startDate: form.startDate || null,
-      endDate: form.current ? null : form.endDate || null,
+      startDate: toISOString(form.startDate),
+      endDate: form.current ? null : toISOString(form.endDate),
       current: form.current,
       enabled: form.enabled,
       sortOrder: Math.max(0, Math.floor(form.sortOrder)),
@@ -327,6 +354,14 @@ export default function ExperiencePage() {
         description: form.translations[value].description.trim(),
       })).filter((translation) => translation.title || translation.description),
     };
+
+    console.log("DATE DEBUG:", {
+      formStartDate: form.startDate,
+      formEndDate: form.endDate,
+      payloadStartDate: payload.startDate,
+      payloadEndDate: payload.endDate,
+      payload,
+    });
 
     try {
       setSubmitting(true);
@@ -754,24 +789,26 @@ export default function ExperiencePage() {
                         placeholder="مثلاً Frontend Developer"
                       />
                     </label>
-
                     <LocalizedDatePicker
                       label="تاریخ شروع"
                       language="fa"
                       value={form.startDate || null}
-                      onChange={(value) =>
-                        updateField("startDate", value ?? "")
-                      }
+                      onChange={(value) => {
+                        console.log("[ExperiencePage] Start date:", value);
+                        updateField("startDate", value ?? "");
+                      }}
                     />
 
                     <LocalizedDatePicker
                       label="تاریخ پایان"
                       language="fa"
                       value={form.endDate || null}
-                      onChange={(value) => updateField("endDate", value ?? "")}
+                      onChange={(value) => {
+                        console.log("[ExperiencePage] End date:", value);
+                        updateField("endDate", value ?? "");
+                      }}
                       disabled={form.current}
                     />
-
                     <label className="experience-field">
                       <span>ترتیب نمایش</span>
                       <input
