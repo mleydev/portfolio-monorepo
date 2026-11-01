@@ -30,6 +30,7 @@ import BlogPage from "./features/blog/BlogPage";
 import SkillsPage from "./features/skills/SkillsPage";
 import ExperiencePage from "./features/experience/ExperiencePage";
 import LanguageSkillsPage from "./features/language-skills/LanguageSkillsPage";
+import FeedbackPage from "./features/feedback/FeedbackPage";
 
 type NavItem = {
   label: string;
@@ -469,6 +470,8 @@ function App() {
             <SkillsPage />
           ) : activePage === "زبان‌ها" ? (
             <LanguageSkillsPage />
+          ) : activePage === "نظرات و بازخوردها" ? (
+            <FeedbackPage />
           ) : activePage === "مقالات وبلاگ" ? (
             <BlogPage />
           ) : activePage === "پروفایل" ? (
