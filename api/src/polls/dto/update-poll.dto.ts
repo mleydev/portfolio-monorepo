@@ -46,12 +46,11 @@ export class UpdatePollDto {
 
   @IsOptional()
   @IsDateString()
-  startsAt?: string;
+  startsAt?: string | null;
 
   @IsOptional()
   @IsDateString()
-  endsAt?: string;
-
+  endsAt?: string | null;
   @IsOptional()
   @IsBoolean()
   showResults?: boolean;

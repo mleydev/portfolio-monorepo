@@ -8,6 +8,7 @@ import { Language, PollStatus } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePollDto } from './dto/create-poll.dto';
 import { VotePollDto } from './dto/vote-poll.dto';
+import { UpdatePollDto } from './dto/update-poll.dto';
 
 @Injectable()
 export class PollsService {
@@ -233,6 +234,170 @@ export class PollsService {
           orderBy: { sortOrder: 'asc' },
         },
       },
+    });
+  }
+
+  /**
+   * Updates a poll and synchronizes its translations and options.
+   * Existing option IDs are preserved to keep their votes intact.
+   */
+  async update(id: string, dto: UpdatePollDto) {
+    const poll = await this.prisma.poll.findUnique({
+      where: { id },
+      include: {
+        options: {
+          include: {
+            _count: {
+              select: { votes: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!poll) {
+      throw new NotFoundException('Poll not found.');
+    }
+
+    // Validate the resulting date range, including unchanged dates.
+    this.validateDates(
+      dto.startsAt !== undefined
+        ? dto.startsAt
+        : (poll.startsAt?.toISOString() ?? null),
+      dto.endsAt !== undefined
+        ? dto.endsAt
+        : (poll.endsAt?.toISOString() ?? null),
+    );
+
+    if (dto.translations) {
+      this.validateTranslations(dto.translations, 'poll translations');
+    }
+
+    if (dto.options) {
+      for (const [index, option] of dto.options.entries()) {
+        this.validateTranslations(
+          option.translations,
+          `translations for option ${index + 1}`,
+        );
+      }
+
+      const submittedIds = dto.options
+        .map((option) => option.id)
+        .filter((optionId): optionId is string => Boolean(optionId));
+
+      if (new Set(submittedIds).size !== submittedIds.length) {
+        throw new BadRequestException('Duplicate option IDs are not allowed.');
+      }
+
+      const existingIds = new Set(poll.options.map((option) => option.id));
+
+      if (submittedIds.some((optionId) => !existingIds.has(optionId))) {
+        throw new BadRequestException(
+          'One or more option IDs do not belong to this poll.',
+        );
+      }
+
+      const removedOptions = poll.options.filter(
+        (option) => !submittedIds.includes(option.id),
+      );
+
+      const optionsWithVotes = removedOptions.filter(
+        (option) => option._count.votes > 0,
+      );
+
+      if (optionsWithVotes.length > 0) {
+        throw new BadRequestException(
+          'Options with existing votes cannot be removed.',
+        );
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updateData = {
+        ...(dto.type !== undefined ? { type: dto.type } : {}),
+        ...(dto.startsAt !== undefined
+          ? { startsAt: dto.startsAt ? new Date(dto.startsAt) : null }
+          : {}),
+        ...(dto.endsAt !== undefined
+          ? { endsAt: dto.endsAt ? new Date(dto.endsAt) : null }
+          : {}),
+        ...(dto.showResults !== undefined
+          ? { showResults: dto.showResults }
+          : {}),
+        ...(dto.translations
+          ? {
+              translations: {
+                deleteMany: {},
+                create: dto.translations,
+              },
+            }
+          : {}),
+      };
+
+      await tx.poll.update({
+        where: { id },
+        data: updateData,
+      });
+
+      if (dto.options) {
+        const submittedIds = dto.options
+          .map((option) => option.id)
+          .filter((optionId): optionId is string => Boolean(optionId));
+
+        const removedIds = poll.options
+          .filter((option) => !submittedIds.includes(option.id))
+          .map((option) => option.id);
+
+        if (removedIds.length > 0) {
+          await tx.pollOption.deleteMany({
+            where: {
+              pollId: id,
+              id: { in: removedIds },
+            },
+          });
+        }
+
+        for (const [index, option] of dto.options.entries()) {
+          if (option.id) {
+            await tx.pollOption.update({
+              where: { id: option.id },
+              data: {
+                sortOrder: option.sortOrder ?? index,
+                translations: {
+                  deleteMany: {},
+                  create: option.translations,
+                },
+              },
+            });
+          } else {
+            await tx.pollOption.create({
+              data: {
+                pollId: id,
+                sortOrder: option.sortOrder ?? index,
+                translations: {
+                  create: option.translations,
+                },
+              },
+            });
+          }
+        }
+      }
+
+      return tx.poll.findUnique({
+        where: { id },
+        include: {
+          translations: true,
+          options: {
+            include: {
+              translations: true,
+              _count: {
+                select: { votes: true },
+              },
+            },
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
+      });
     });
   }
 

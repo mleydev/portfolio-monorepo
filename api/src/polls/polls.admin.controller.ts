@@ -17,6 +17,7 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CreatePollDto } from './dto/create-poll.dto';
 import { UpdatePollStatusDto } from './dto/update-poll-status.dto';
 import { PollsService } from './polls.service';
+import { UpdatePollDto } from './dto/update-poll.dto';
 
 @ApiTags('Admin Polls')
 @ApiBearerAuth('JWT-auth')
@@ -51,6 +52,11 @@ export class PollsAdminController {
   @Patch(':id/status')
   setStatus(@Param('id') id: string, @Body() dto: UpdatePollStatusDto) {
     return this.pollsService.setStatus(id, dto.status as PollStatus);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdatePollDto) {
+    return this.pollsService.update(id, dto);
   }
 
   @Delete(':id')
