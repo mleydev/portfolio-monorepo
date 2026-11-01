@@ -1193,3 +1193,28 @@
     font-size: 15px;
   }
 }
+
+.polls-date-time-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(110px, 1fr);
+  align-items: end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.polls-date-time-field > * {
+  min-width: 0;
+  width: 100%;
+}
+
+.polls-date-time-field .polls-field input {
+  width: 100%;
+  direction: ltr;
+  text-align: center;
+}
+
+@media (max-width: 650px) {
+  .polls-date-time-field {
+    grid-template-columns: 1fr;
+  }
+}

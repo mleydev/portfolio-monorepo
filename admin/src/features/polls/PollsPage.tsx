@@ -17,7 +17,9 @@ import {
   X,
 } from "lucide-react";
 import api from "../../lib/api";
+import LocalizedDatePicker from "../../components/date-picker/LocalizedDatePicker";
 import "./PollsPage.css";
+import axios from "axios";
 
 type Language = "fa" | "en" | "tr" | "ar";
 type PollType = "SINGLE_CHOICE" | "MULTIPLE_CHOICE";
@@ -80,7 +82,9 @@ interface PollForm {
   type: PollType;
   showResults: boolean;
   startsAt: string;
+  startsAtTime: string;
   endsAt: string;
+  endsAtTime: string;
   translations: Record<Language, { title: string; description: string }>;
   options: PollFormOption[];
 }
@@ -118,27 +122,41 @@ const createEmptyForm = (): PollForm => ({
   type: "SINGLE_CHOICE",
   showResults: true,
   startsAt: "",
+  startsAtTime: "00:00",
   endsAt: "",
+  endsAtTime: "00:00",
   translations: EMPTY_TRANSLATIONS(),
   options: [createEmptyOption(), createEmptyOption()],
 });
 
-const toDateInputValue = (date: string | null) => {
-  if (!date) return "";
+const toDateTimePickerValue = (date: string | null) => {
+  if (!date) {
+    return { date: "", time: "00:00" };
+  }
 
   const parsedDate = new Date(date);
 
-  if (Number.isNaN(parsedDate.getTime())) return "";
+  if (Number.isNaN(parsedDate.getTime())) {
+    return { date: "", time: "00:00" };
+  }
 
-  const localDate = new Date(
-    parsedDate.getTime() - parsedDate.getTimezoneOffset() * 60000,
-  );
+  const year = parsedDate.getFullYear();
+  const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
+  const day = String(parsedDate.getDate()).padStart(2, "0");
+  const hours = String(parsedDate.getHours()).padStart(2, "0");
+  const minutes = String(parsedDate.getMinutes()).padStart(2, "0");
 
-  return localDate.toISOString().slice(0, 16);
+  return {
+    date: `${year}-${month}-${day}`,
+    time: `${hours}:${minutes}`,
+  };
 };
 
-const toIsoDate = (date: string) =>
-  date ? new Date(date).toISOString() : null;
+const combineDateTime = (date: string, time: string) => {
+  if (!date) return null;
+
+  return new Date(`${date}T${time || "00:00"}:00`).toISOString();
+};
 
 const getTranslation = (translations: Translation[], language: Language) =>
   translations.find((item) => item.language === language);
@@ -169,6 +187,35 @@ const formatDate = (date: string | null) => {
   });
 };
 
+const formatTime = (date: string | null) => {
+  if (!date) return "";
+
+  return new Date(date).toLocaleTimeString("fa-IR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+interface ApiErrorResponse {
+  message?: string | string[];
+}
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (axios.isAxiosError<ApiErrorResponse>(error)) {
+    const message = error.response?.data?.message;
+
+    if (Array.isArray(message)) {
+      return message.join("، ");
+    }
+
+    if (message) {
+      return message;
+    }
+  }
+
+  return fallback;
+};
+
 const PollsPage = () => {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,18 +243,40 @@ const PollsPage = () => {
 
       const response = await api.get<Poll[]>("/admin/polls");
       setPolls(response.data);
-    } catch (err: any) {
-      setError(
-        err.response?.data?.message || "دریافت نظرسنجی‌ها با خطا مواجه شد.",
-      );
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "دریافت نظرسنجی‌ها با خطا مواجه شد."));
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void fetchPolls();
-  }, [fetchPolls]);
+    let isMounted = true;
+
+    const loadPolls = async () => {
+      try {
+        const response = await api.get<Poll[]>("/admin/polls");
+
+        if (isMounted) {
+          setPolls(response.data);
+        }
+      } catch (err: unknown) {
+        if (isMounted) {
+          setError(getErrorMessage(err, "دریافت نظرسنجی‌ها با خطا مواجه شد."));
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadPolls();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredPolls = useMemo(() => {
     return polls.filter((poll) => {
@@ -270,18 +339,24 @@ const PollsPage = () => {
       };
     });
 
+    const startsAt = toDateTimePickerValue(poll.startsAt);
+    const endsAt = toDateTimePickerValue(poll.endsAt);
+
     setEditingPoll(poll);
     setForm({
       type: poll.type,
       showResults: poll.showResults,
-      startsAt: toDateInputValue(poll.startsAt),
-      endsAt: toDateInputValue(poll.endsAt),
+      startsAt: startsAt.date,
+      startsAtTime: startsAt.time,
+      endsAt: endsAt.date,
+      endsAtTime: endsAt.time,
       translations,
       options:
         options.length >= 2
           ? options
           : [...options, createEmptyOption(), createEmptyOption()].slice(0, 2),
     });
+
     setActiveLanguage("fa");
     setFormError("");
     setModalOpen(true);
@@ -364,20 +439,24 @@ const PollsPage = () => {
       return "متن فارسی تمام گزینه‌ها الزامی است.";
     }
 
-    if (
-      form.startsAt &&
-      form.endsAt &&
-      new Date(form.endsAt) <= new Date(form.startsAt)
-    ) {
-      return "تاریخ پایان باید بعد از تاریخ شروع باشد.";
+    const startsAt = form.startsAt
+      ? new Date(`${form.startsAt}T${form.startsAtTime || "00:00"}:00`)
+      : null;
+
+    const endsAt = form.endsAt
+      ? new Date(`${form.endsAt}T${form.endsAtTime || "00:00"}:00`)
+      : null;
+
+    if (startsAt && Number.isNaN(startsAt.getTime())) {
+      return "تاریخ و ساعت شروع معتبر نیست.";
     }
 
-    if (
-      form.type === "SINGLE_CHOICE" &&
-      !form.showResults &&
-      editingPoll?.status === "PUBLISHED"
-    ) {
-      // Result visibility is independent of the poll's choice type.
+    if (endsAt && Number.isNaN(endsAt.getTime())) {
+      return "تاریخ و ساعت پایان معتبر نیست.";
+    }
+
+    if (startsAt && endsAt && endsAt <= startsAt) {
+      return "تاریخ و ساعت پایان باید بعد از شروع باشد.";
     }
 
     return "";
@@ -386,8 +465,8 @@ const PollsPage = () => {
   const buildPayload = () => ({
     type: form.type,
     showResults: form.showResults,
-    startsAt: toIsoDate(form.startsAt),
-    endsAt: toIsoDate(form.endsAt),
+    startsAt: combineDateTime(form.startsAt, form.startsAtTime),
+    endsAt: combineDateTime(form.endsAt, form.endsAtTime),
     translations: LANGUAGES.filter(({ value }) =>
       form.translations[value].title.trim(),
     ).map(({ value }) => ({
@@ -431,10 +510,8 @@ const PollsPage = () => {
 
       setModalOpen(false);
       await fetchPolls();
-    } catch (err: any) {
-      setFormError(
-        err.response?.data?.message || "ذخیره نظرسنجی با خطا مواجه شد.",
-      );
+    } catch (err: unknown) {
+      setFormError(getErrorMessage(err, "ذخیره نظرسنجی با خطا مواجه شد."));
     } finally {
       setSubmitting(false);
     }
@@ -444,8 +521,8 @@ const PollsPage = () => {
     try {
       await api.patch(`/admin/polls/${poll.id}/status`, { status });
       await fetchPolls();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "تغییر وضعیت نظرسنجی انجام نشد.");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "تغییر وضعیت نظرسنجی انجام نشد."));
     }
   };
 
@@ -461,8 +538,8 @@ const PollsPage = () => {
     try {
       await api.delete(`/admin/polls/${poll.id}`);
       await fetchPolls();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "حذف نظرسنجی با خطا مواجه شد.");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "حذف نظرسنجی با خطا مواجه نشد."));
     }
   };
 
@@ -478,9 +555,9 @@ const PollsPage = () => {
       );
 
       setSelectedResults(response.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setResultsOpen(false);
-      setError(err.response?.data?.message || "دریافت نتایج نظرسنجی ممکن نشد.");
+      setError(getErrorMessage(err, "دریافت نتایج نظرسنجی ممکن نشد."));
     } finally {
       setResultsLoading(false);
     }
@@ -663,10 +740,12 @@ const PollsPage = () => {
                 <span>
                   <CalendarDays size={14} />
                   شروع: {formatDate(poll.startsAt)}
+                  {poll.startsAt && ` - ${formatTime(poll.startsAt)}`}
                 </span>
                 <span>
                   <CalendarDays size={14} />
                   پایان: {formatDate(poll.endsAt)}
+                  {poll.endsAt && ` - ${formatTime(poll.endsAt)}`}
                 </span>
               </div>
 
@@ -737,33 +816,65 @@ const PollsPage = () => {
                       </select>
                     </label>
 
-                    <label className="polls-field">
-                      <span>تاریخ شروع</span>
-                      <input
-                        type="datetime-local"
-                        value={form.startsAt}
-                        onChange={(event) =>
+                    <div className="polls-date-time-field">
+                      <LocalizedDatePicker
+                        label="تاریخ شروع"
+                        language="fa"
+                        value={form.startsAt || null}
+                        onChange={(value) =>
                           setForm((current) => ({
                             ...current,
-                            startsAt: event.target.value,
+                            startsAt: value ?? "",
                           }))
                         }
+                        placeholder="انتخاب تاریخ شروع"
                       />
-                    </label>
 
-                    <label className="polls-field">
-                      <span>تاریخ پایان</span>
-                      <input
-                        type="datetime-local"
-                        value={form.endsAt}
-                        onChange={(event) =>
+                      <label className="polls-field">
+                        <span>ساعت شروع</span>
+                        <input
+                          type="time"
+                          value={form.startsAtTime}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              startsAtTime: event.target.value,
+                            }))
+                          }
+                          disabled={!form.startsAt}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="polls-date-time-field">
+                      <LocalizedDatePicker
+                        label="تاریخ پایان"
+                        language="fa"
+                        value={form.endsAt || null}
+                        onChange={(value) =>
                           setForm((current) => ({
                             ...current,
-                            endsAt: event.target.value,
+                            endsAt: value ?? "",
                           }))
                         }
+                        placeholder="انتخاب تاریخ پایان"
                       />
-                    </label>
+
+                      <label className="polls-field">
+                        <span>ساعت پایان</span>
+                        <input
+                          type="time"
+                          value={form.endsAtTime}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              endsAtTime: event.target.value,
+                            }))
+                          }
+                          disabled={!form.endsAt}
+                        />
+                      </label>
+                    </div>
                   </div>
 
                   <label className="polls-switch-row">
