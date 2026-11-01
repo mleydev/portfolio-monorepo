@@ -29,6 +29,7 @@ import ProfilePage from "./features/profile/ProfilePage";
 import BlogPage from "./features/blog/BlogPage";
 import SkillsPage from "./features/skills/SkillsPage";
 import ExperiencePage from "./features/experience/ExperiencePage";
+import LanguageSkillsPage from "./features/language-skills/LanguageSkillsPage";
 
 type NavItem = {
   label: string;
@@ -466,6 +467,8 @@ function App() {
             <ExperiencePage />
           ) : activePage === "مهارت‌ها" ? (
             <SkillsPage />
+          ) : activePage === "زبان‌ها" ? (
+            <LanguageSkillsPage />
           ) : activePage === "مقالات وبلاگ" ? (
             <BlogPage />
           ) : activePage === "پروفایل" ? (
