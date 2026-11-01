@@ -27,6 +27,7 @@ import "./App.css";
 import ProjectsPage from "./features/projects/ProjectsPage";
 import ProfilePage from "./features/profile/ProfilePage";
 import BlogPage from "./features/blog/BlogPage";
+import SkillsPage from "./features/skills/SkillsPage";
 
 type NavItem = {
   label: string;
@@ -460,7 +461,9 @@ function App() {
             </div>
           </section>
 
-          {activePage === "مقالات وبلاگ" ? (
+          {activePage === "مهارت‌ها" ? (
+            <SkillsPage />
+          ) : activePage === "مقالات وبلاگ" ? (
             <BlogPage />
           ) : activePage === "پروفایل" ? (
             <ProfilePage />
