@@ -1,0 +1,91 @@
+
+.localized-date-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.localized-date-picker__label {
+  color: var(--text-secondary, #a1a1aa);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.localized-date-picker__required {
+  color: #ef4444;
+  margin-inline-start: 4px;
+}
+
+.localized-date-picker__container {
+  width: 100%;
+}
+
+.localized-date-picker__input {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color, #333);
+  border-radius: 10px;
+  outline: none;
+  background: var(--input-bg, #18181b);
+  color: var(--text-primary, #fff);
+  font-family: inherit;
+  font-size: 13px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.localized-date-picker__input:focus {
+  border-color: var(--primary-color, #8b5cf6);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--primary-color, #8b5cf6) 15%, transparent);
+}
+
+.localized-date-picker__input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.localized-date-picker__input::placeholder {
+  color: var(--text-muted, #71717a);
+}
+
+.localized-date-picker__calendar .rmdp-wrapper {
+  border: 1px solid var(--border-color, #333);
+  border-radius: 12px;
+  background: var(--card-bg, #18181b);
+  color: var(--text-primary, #fff);
+  box-shadow: 0 12px 35px rgb(0 0 0 / 20%);
+}
+
+.localized-date-picker__calendar .rmdp-header-values {
+  color: var(--text-primary, #fff);
+  font-weight: 600;
+}
+
+.localized-date-picker__calendar .rmdp-day span {
+  color: var(--text-primary, #fff);
+}
+
+.localized-date-picker__calendar .rmdp-day:not(.rmdp-disabled):not(.rmdp-day-hidden) span:hover {
+  background-color: var(--primary-color, #8b5cf6);
+  color: #fff;
+}
+
+.localized-date-picker__calendar .rmdp-day.rmdp-selected span {
+  background-color: var(--primary-color, #8b5cf6);
+  color: #fff;
+}
+
+.localized-date-picker__calendar .rmdp-arrow {
+  border-color: var(--text-primary, #fff);
+}
+
+.localized-date-picker__calendar .rmdp-week-day {
+  color: var(--text-muted, #a1a1aa);
+}
+
+.localized-date-picker__error {
+  color: #ef4444;
+  font-size: 12px;
+}

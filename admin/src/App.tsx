@@ -28,6 +28,7 @@ import ProjectsPage from "./features/projects/ProjectsPage";
 import ProfilePage from "./features/profile/ProfilePage";
 import BlogPage from "./features/blog/BlogPage";
 import SkillsPage from "./features/skills/SkillsPage";
+import ExperiencePage from "./features/experience/ExperiencePage";
 
 type NavItem = {
   label: string;
@@ -461,7 +462,9 @@ function App() {
             </div>
           </section>
 
-          {activePage === "مهارت‌ها" ? (
+          {activePage === "سوابق کاری" ? (
+            <ExperiencePage />
+          ) : activePage === "مهارت‌ها" ? (
             <SkillsPage />
           ) : activePage === "مقالات وبلاگ" ? (
             <BlogPage />
