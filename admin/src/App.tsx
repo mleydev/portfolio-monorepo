@@ -156,6 +156,7 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api/v1";
 import PollsPage from "./features/polls/PollsPage";
 import MediaPage from "./features/media/MediaPage";
+import SiteManagementPage from "./features/site-management/SiteManagementPage";
 
 const resolveMediaUrl = (url: string | null) => {
   if (!url) return "";
@@ -468,6 +469,8 @@ function App() {
 
           {activePage === "سوابق کاری" ? (
             <ExperiencePage />
+          ) : activePage === "مدیریت سایت" ? (
+            <SiteManagementPage />
           ) : activePage === "رسانه‌ها" ? (
             <MediaPage />
           ) : activePage === "نظرسنجی‌ها" ? (
