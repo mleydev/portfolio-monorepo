@@ -157,6 +157,7 @@ const API_BASE_URL =
 import PollsPage from "./features/polls/PollsPage";
 import MediaPage from "./features/media/MediaPage";
 import SiteManagementPage from "./features/site-management/SiteManagementPage";
+import UsersPage from "./features/users/UsersPage";
 
 const resolveMediaUrl = (url: string | null) => {
   if (!url) return "";
@@ -469,6 +470,8 @@ function App() {
 
           {activePage === "سوابق کاری" ? (
             <ExperiencePage />
+          ) : activePage === "کاربران و دسترسی‌ها" ? (
+            <UsersPage />
           ) : activePage === "مدیریت سایت" ? (
             <SiteManagementPage />
           ) : activePage === "رسانه‌ها" ? (
