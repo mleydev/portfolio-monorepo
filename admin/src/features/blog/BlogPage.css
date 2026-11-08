@@ -1025,3 +1025,16 @@
     flex-direction: column-reverse;
   }
 }
+
+.blog-modal-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 35%);
+  color: white;
+  font-size: 14px;
+  backdrop-filter: blur(3px);
+}

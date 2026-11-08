@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import {
   Search,
   Plus,
@@ -21,7 +21,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-import BlogFormModal from "./BlogFormModal";
+const BlogFormModal = lazy(() => import("./BlogFormModal"));
 
 import { useBlog } from "./hooks/useBlog";
 import {
@@ -705,12 +705,19 @@ const BlogPage = () => {
         )}
       </section>
       {formMode && (
-        <BlogFormModal
-          mode={formMode}
-          article={selectedArticle}
-          onClose={closeForm}
-          onSubmit={handleFormSubmit}
-        />
+        <Suspense
+          fallback={
+            <div className="blog-modal-loading" role="status">
+              در حال بارگذاری ویرایشگر...
+            </div>
+          }>
+          <BlogFormModal
+            mode={formMode}
+            article={selectedArticle}
+            onClose={closeForm}
+            onSubmit={handleFormSubmit}
+          />
+        </Suspense>
       )}
       {articleToDelete && (
         <div

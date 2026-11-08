@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
   Activity,
   ArrowDownLeft,
@@ -24,13 +24,33 @@ import {
   X,
 } from "lucide-react";
 import "./App.css";
-import ProjectsPage from "./features/projects/ProjectsPage";
-import ProfilePage from "./features/profile/ProfilePage";
-import BlogPage from "./features/blog/BlogPage";
-import SkillsPage from "./features/skills/SkillsPage";
-import ExperiencePage from "./features/experience/ExperiencePage";
-import LanguageSkillsPage from "./features/language-skills/LanguageSkillsPage";
-import FeedbackPage from "./features/feedback/FeedbackPage";
+const ProjectsPage = lazy(() => import("./features/projects/ProjectsPage"));
+
+const ProfilePage = lazy(() => import("./features/profile/ProfilePage"));
+
+const BlogPage = lazy(() => import("./features/blog/BlogPage"));
+
+const SkillsPage = lazy(() => import("./features/skills/SkillsPage"));
+
+const ExperiencePage = lazy(
+  () => import("./features/experience/ExperiencePage"),
+);
+
+const LanguageSkillsPage = lazy(
+  () => import("./features/language-skills/LanguageSkillsPage"),
+);
+
+const FeedbackPage = lazy(() => import("./features/feedback/FeedbackPage"));
+
+const PollsPage = lazy(() => import("./features/polls/PollsPage"));
+
+const MediaPage = lazy(() => import("./features/media/MediaPage"));
+
+const SiteManagementPage = lazy(
+  () => import("./features/site-management/SiteManagementPage"),
+);
+
+const UsersPage = lazy(() => import("./features/users/UsersPage"));
 
 type NavItem = {
   label: string;
@@ -154,10 +174,6 @@ type AdminProfile = {
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api/v1";
-import PollsPage from "./features/polls/PollsPage";
-import MediaPage from "./features/media/MediaPage";
-import SiteManagementPage from "./features/site-management/SiteManagementPage";
-import UsersPage from "./features/users/UsersPage";
 
 const resolveMediaUrl = (url: string | null) => {
   if (!url) return "";
@@ -467,200 +483,208 @@ function App() {
               </button>
             </div>
           </section>
+          <Suspense
+            fallback={
+              <div className="page-loading" role="status" aria-live="polite">
+                <span className="page-loading-spinner" />
+                <span>در حال بارگذاری صفحه...</span>
+              </div>
+            }>
+            {activePage === "سوابق کاری" ? (
+              <ExperiencePage />
+            ) : activePage === "کاربران و دسترسی‌ها" ? (
+              <UsersPage />
+            ) : activePage === "مدیریت سایت" ? (
+              <SiteManagementPage />
+            ) : activePage === "رسانه‌ها" ? (
+              <MediaPage />
+            ) : activePage === "نظرسنجی‌ها" ? (
+              <PollsPage />
+            ) : activePage === "مهارت‌ها" ? (
+              <SkillsPage />
+            ) : activePage === "زبان‌ها" ? (
+              <LanguageSkillsPage />
+            ) : activePage === "نظرات و بازخوردها" ? (
+              <FeedbackPage />
+            ) : activePage === "مقالات وبلاگ" ? (
+              <BlogPage />
+            ) : activePage === "پروفایل" ? (
+              <ProfilePage />
+            ) : activePage === "پروژه‌ها" ? (
+              <ProjectsPage />
+            ) : activePage === "داشبورد" ? (
+              <>
+                <section className="stats-grid" aria-label="آمار کلی">
+                  {stats.map((stat) => {
+                    const Icon = stat.icon;
+                    return (
+                      <article className="stat-card" key={stat.label}>
+                        <div className="stat-card-top">
+                          <span className={`stat-icon tone-${stat.tone}`}>
+                            <Icon size={21} strokeWidth={1.8} />
+                          </span>
+                          <button
+                            className="stat-more"
+                            aria-label={`اطلاعات ${stat.label}`}>
+                            <ExternalLink size={15} />
+                          </button>
+                        </div>
+                        <p className="stat-label">{stat.label}</p>
+                        <div className="stat-value-row">
+                          <strong className="stat-value">{stat.value}</strong>
+                          <span className="stat-change">
+                            <ArrowUpLeft size={14} />
+                            {stat.change}
+                          </span>
+                        </div>
+                        <p className="stat-detail">{stat.detail}</p>
+                      </article>
+                    );
+                  })}
+                </section>
 
-          {activePage === "سوابق کاری" ? (
-            <ExperiencePage />
-          ) : activePage === "کاربران و دسترسی‌ها" ? (
-            <UsersPage />
-          ) : activePage === "مدیریت سایت" ? (
-            <SiteManagementPage />
-          ) : activePage === "رسانه‌ها" ? (
-            <MediaPage />
-          ) : activePage === "نظرسنجی‌ها" ? (
-            <PollsPage />
-          ) : activePage === "مهارت‌ها" ? (
-            <SkillsPage />
-          ) : activePage === "زبان‌ها" ? (
-            <LanguageSkillsPage />
-          ) : activePage === "نظرات و بازخوردها" ? (
-            <FeedbackPage />
-          ) : activePage === "مقالات وبلاگ" ? (
-            <BlogPage />
-          ) : activePage === "پروفایل" ? (
-            <ProfilePage />
-          ) : activePage === "پروژه‌ها" ? (
-            <ProjectsPage />
-          ) : activePage === "داشبورد" ? (
-            <>
-              <section className="stats-grid" aria-label="آمار کلی">
-                {stats.map((stat) => {
-                  const Icon = stat.icon;
-                  return (
-                    <article className="stat-card" key={stat.label}>
-                      <div className="stat-card-top">
-                        <span className={`stat-icon tone-${stat.tone}`}>
-                          <Icon size={21} strokeWidth={1.8} />
-                        </span>
-                        <button
-                          className="stat-more"
-                          aria-label={`اطلاعات ${stat.label}`}>
-                          <ExternalLink size={15} />
-                        </button>
+                <section className="content-grid">
+                  <article className="panel activity-panel">
+                    <div className="panel-header">
+                      <div>
+                        <h2>فعالیت‌های اخیر</h2>
+                        <p>آخرین تغییرات در فضای کاری شما</p>
                       </div>
-                      <p className="stat-label">{stat.label}</p>
-                      <div className="stat-value-row">
-                        <strong className="stat-value">{stat.value}</strong>
-                        <span className="stat-change">
-                          <ArrowUpLeft size={14} />
-                          {stat.change}
-                        </span>
-                      </div>
-                      <p className="stat-detail">{stat.detail}</p>
-                    </article>
-                  );
-                })}
-              </section>
-
-              <section className="content-grid">
-                <article className="panel activity-panel">
-                  <div className="panel-header">
-                    <div>
-                      <h2>فعالیت‌های اخیر</h2>
-                      <p>آخرین تغییرات در فضای کاری شما</p>
+                      <button
+                        className="text-button"
+                        onClick={() => setActivePage("مقالات وبلاگ")}>
+                        مشاهده همه
+                        <ArrowDownLeft size={16} />
+                      </button>
                     </div>
-                    <button
-                      className="text-button"
-                      onClick={() => setActivePage("مقالات وبلاگ")}>
-                      مشاهده همه
-                      <ArrowDownLeft size={16} />
-                    </button>
-                  </div>
-                  <div className="activity-list">
-                    {activities
-                      .filter((activity) =>
+                    <div className="activity-list">
+                      {activities
+                        .filter((activity) =>
+                          `${activity.title} ${activity.description}`.includes(
+                            search.trim(),
+                          ),
+                        )
+                        .map((activity) => {
+                          const Icon = activity.icon;
+                          return (
+                            <div className="activity-item" key={activity.title}>
+                              <span
+                                className={`activity-icon tone-${activity.tone}`}>
+                                <Icon size={18} />
+                              </span>
+                              <div className="activity-copy">
+                                <strong>{activity.title}</strong>
+                                <p>{activity.description}</p>
+                              </div>
+                              <time>{activity.time}</time>
+                            </div>
+                          );
+                        })}
+                      {activities.filter((activity) =>
                         `${activity.title} ${activity.description}`.includes(
                           search.trim(),
                         ),
-                      )
-                      .map((activity) => {
-                        const Icon = activity.icon;
-                        return (
-                          <div className="activity-item" key={activity.title}>
-                            <span
-                              className={`activity-icon tone-${activity.tone}`}>
-                              <Icon size={18} />
-                            </span>
-                            <div className="activity-copy">
-                              <strong>{activity.title}</strong>
-                              <p>{activity.description}</p>
-                            </div>
-                            <time>{activity.time}</time>
-                          </div>
-                        );
-                      })}
-                    {activities.filter((activity) =>
-                      `${activity.title} ${activity.description}`.includes(
-                        search.trim(),
-                      ),
-                    ).length === 0 && (
-                      <p className="empty-search">
-                        فعالیتی با این عبارت پیدا نشد.
-                      </p>
-                    )}
-                  </div>
-                </article>
-
-                <article className="panel quick-panel">
-                  <div className="panel-header">
-                    <div>
-                      <h2>دسترسی سریع</h2>
-                      <p>کارهای پرکاربرد</p>
+                      ).length === 0 && (
+                        <p className="empty-search">
+                          فعالیتی با این عبارت پیدا نشد.
+                        </p>
+                      )}
                     </div>
-                  </div>
-                  <div className="quick-actions">
-                    <button onClick={() => setActivePage("مقالات وبلاگ")}>
-                      <span className="quick-icon tone-purple">
-                        <FileText size={19} />
-                      </span>
-                      <span>
-                        <strong>مقاله جدید</strong>
-                        <small>نوشتن و انتشار مقاله</small>
-                      </span>
-                      <ArrowDownLeft size={17} className="quick-arrow" />
-                    </button>
-                    <button onClick={() => setActivePage("پروژه‌ها")}>
-                      <span className="quick-icon tone-blue">
-                        <BriefcaseBusiness size={19} />
-                      </span>
-                      <span>
-                        <strong>افزودن پروژه</strong>
-                        <small>نمایش یک نمونه‌کار جدید</small>
-                      </span>
-                      <ArrowDownLeft size={17} className="quick-arrow" />
-                    </button>
-                    <button onClick={() => setActivePage("مدیریت سایت")}>
-                      <span className="quick-icon tone-green">
-                        <Settings2 size={19} />
-                      </span>
-                      <span>
-                        <strong>تنظیمات سایت</strong>
-                        <small>مدیریت ظاهر و محتوا</small>
-                      </span>
-                      <ArrowDownLeft size={17} className="quick-arrow" />
-                    </button>
-                    <button onClick={() => setActivePage("نظرات و بازخوردها")}>
-                      <span className="quick-icon tone-orange">
-                        <MessageSquare size={19} />
-                      </span>
-                      <span>
-                        <strong>بررسی بازخوردها</strong>
-                        <small>پیام‌های دریافتی</small>
-                      </span>
-                      <ArrowDownLeft size={17} className="quick-arrow" />
-                    </button>
-                  </div>
-                </article>
-              </section>
+                  </article>
 
-              <section className="bottom-banner">
-                <div className="banner-art">
-                  <div className="banner-orbit banner-orbit-one" />
-                  <div className="banner-orbit banner-orbit-two" />
-                  <div className="banner-monogram">ML</div>
-                </div>
-                <div className="banner-copy">
-                  <span>MEHDI LEILAEI · PERSONAL PORTFOLIO</span>
-                  <h2>فضای دیجیتال تو، با امضای خودت.</h2>
-                  <p>
-                    پروژه‌ها، مهارت‌ها و تجربه‌هایت را در یک فضای یکپارچه مدیریت
-                    کن.
-                  </p>
-                </div>
+                  <article className="panel quick-panel">
+                    <div className="panel-header">
+                      <div>
+                        <h2>دسترسی سریع</h2>
+                        <p>کارهای پرکاربرد</p>
+                      </div>
+                    </div>
+                    <div className="quick-actions">
+                      <button onClick={() => setActivePage("مقالات وبلاگ")}>
+                        <span className="quick-icon tone-purple">
+                          <FileText size={19} />
+                        </span>
+                        <span>
+                          <strong>مقاله جدید</strong>
+                          <small>نوشتن و انتشار مقاله</small>
+                        </span>
+                        <ArrowDownLeft size={17} className="quick-arrow" />
+                      </button>
+                      <button onClick={() => setActivePage("پروژه‌ها")}>
+                        <span className="quick-icon tone-blue">
+                          <BriefcaseBusiness size={19} />
+                        </span>
+                        <span>
+                          <strong>افزودن پروژه</strong>
+                          <small>نمایش یک نمونه‌کار جدید</small>
+                        </span>
+                        <ArrowDownLeft size={17} className="quick-arrow" />
+                      </button>
+                      <button onClick={() => setActivePage("مدیریت سایت")}>
+                        <span className="quick-icon tone-green">
+                          <Settings2 size={19} />
+                        </span>
+                        <span>
+                          <strong>تنظیمات سایت</strong>
+                          <small>مدیریت ظاهر و محتوا</small>
+                        </span>
+                        <ArrowDownLeft size={17} className="quick-arrow" />
+                      </button>
+                      <button
+                        onClick={() => setActivePage("نظرات و بازخوردها")}>
+                        <span className="quick-icon tone-orange">
+                          <MessageSquare size={19} />
+                        </span>
+                        <span>
+                          <strong>بررسی بازخوردها</strong>
+                          <small>پیام‌های دریافتی</small>
+                        </span>
+                        <ArrowDownLeft size={17} className="quick-arrow" />
+                      </button>
+                    </div>
+                  </article>
+                </section>
+
+                <section className="bottom-banner">
+                  <div className="banner-art">
+                    <div className="banner-orbit banner-orbit-one" />
+                    <div className="banner-orbit banner-orbit-two" />
+                    <div className="banner-monogram">ML</div>
+                  </div>
+                  <div className="banner-copy">
+                    <span>MEHDI LEILAEI · PERSONAL PORTFOLIO</span>
+                    <h2>فضای دیجیتال تو، با امضای خودت.</h2>
+                    <p>
+                      پروژه‌ها، مهارت‌ها و تجربه‌هایت را در یک فضای یکپارچه
+                      مدیریت کن.
+                    </p>
+                  </div>
+                  <button
+                    className="banner-button"
+                    onClick={() => setActivePage("مدیریت سایت")}>
+                    تنظیمات سایت
+                    <ArrowDownLeft size={17} />
+                  </button>
+                </section>
+              </>
+            ) : (
+              <section className="panel placeholder-panel">
+                <span className="placeholder-icon">
+                  <Settings2 size={25} />
+                </span>
+                <h2>بخش {activePage}</h2>
+                <p>
+                  پوستهٔ داشبورد آماده است. در مرحلهٔ بعد این بخش را به API
+                  واقعی متصل می‌کنیم.
+                </p>
                 <button
-                  className="banner-button"
-                  onClick={() => setActivePage("مدیریت سایت")}>
-                  تنظیمات سایت
-                  <ArrowDownLeft size={17} />
+                  className="button-primary"
+                  onClick={() => setActivePage("داشبورد")}>
+                  بازگشت به داشبورد
                 </button>
               </section>
-            </>
-          ) : (
-            <section className="panel placeholder-panel">
-              <span className="placeholder-icon">
-                <Settings2 size={25} />
-              </span>
-              <h2>بخش {activePage}</h2>
-              <p>
-                پوستهٔ داشبورد آماده است. در مرحلهٔ بعد این بخش را به API واقعی
-                متصل می‌کنیم.
-              </p>
-              <button
-                className="button-primary"
-                onClick={() => setActivePage("داشبورد")}>
-                بازگشت به داشبورد
-              </button>
-            </section>
-          )}
+            )}
+          </Suspense>
 
           <footer className="main-footer">
             <span>

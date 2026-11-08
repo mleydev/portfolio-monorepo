@@ -38,7 +38,8 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // CORS configuration
-  const corsOrigins = 'http://localhost:5173'
+  const corsOrigins = 'http://localhost:4173'
+    // const corsOrigins = 'http://localhost:5173'
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Check,
@@ -10,19 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
-import Link from "@tiptap/extension-link";
-import Image from "@tiptap/extension-image";
-import Placeholder from "@tiptap/extension-placeholder";
-import CharacterCount from "@tiptap/extension-character-count";
-import { Extension } from "@tiptap/core";
-import { TextStyle } from "@tiptap/extension-text-style";
-import Color from "@tiptap/extension-color";
-import Highlight from "@tiptap/extension-highlight";
-import TextAlign from "@tiptap/extension-text-align";
-import Subscript from "@tiptap/extension-subscript";
-import Superscript from "@tiptap/extension-superscript";
+import { createEditorExtensions } from "./extensions/blog-editor.extensions";
 
 import api from "../../lib/api";
 import type {
@@ -35,6 +23,7 @@ import type {
 } from "./types/blog.types";
 
 import "./BlogFormModal.css";
+const BlogArticlePreview = lazy(() => import("./BlogArticlePreview"));
 
 type FormMode = "create" | "edit" | "view";
 
@@ -70,42 +59,6 @@ interface DocumentConversionResponse {
   format: string;
   html: string;
 }
-
-const TextFormatting = Extension.create({
-  name: "textFormatting",
-
-  addGlobalAttributes() {
-    return [
-      {
-        types: ["textStyle"],
-        attributes: {
-          fontSize: {
-            default: null,
-            parseHTML: (element) => element.style.fontSize || null,
-            renderHTML: (attributes) => {
-              if (!attributes.fontSize) return {};
-
-              return {
-                style: `font-size: ${attributes.fontSize}`,
-              };
-            },
-          },
-          fontFamily: {
-            default: null,
-            parseHTML: (element) => element.style.fontFamily || null,
-            renderHTML: (attributes) => {
-              if (!attributes.fontFamily) return {};
-
-              return {
-                style: `font-family: ${attributes.fontFamily}`,
-              };
-            },
-          },
-        },
-      },
-    ];
-  },
-});
 
 const LANGUAGES: {
   value: BlogLanguage;
@@ -214,32 +167,6 @@ const getErrorMessage = (error: unknown) => {
     : "دریافت اطلاعات با خطا مواجه شد.";
 };
 
-const createEditorExtensions = (placeholder = "") => [
-  StarterKit,
-  Underline,
-  TextStyle,
-  TextFormatting,
-  Color,
-  Highlight.configure({
-    multicolor: true,
-  }),
-  TextAlign.configure({
-    types: ["heading", "paragraph"],
-  }),
-  Subscript,
-  Superscript,
-  Link.configure({
-    openOnClick: false,
-    autolink: true,
-    defaultProtocol: "https",
-  }),
-  Image,
-  Placeholder.configure({
-    placeholder,
-  }),
-  CharacterCount,
-];
-
 const BlogFormModal = ({
   mode,
   article,
@@ -258,12 +185,6 @@ const BlogFormModal = ({
   );
 
   const [previewOpen, setPreviewOpen] = useState(false);
-
-  const previewEditor = useEditor({
-    extensions: createEditorExtensions(),
-    content: EMPTY_CONTENT,
-    editable: false,
-  });
 
   const [status, setStatus] = useState<BlogArticleStatus>(
     article?.status ?? "DRAFT",
@@ -368,11 +289,11 @@ const BlogFormModal = ({
   }, []);
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed) return;
 
     editor.setEditable(!isReadOnly);
     editor.commands.setContent(translations[activeLanguage].content as never);
-  }, [activeLanguage, editor, isReadOnly]);
+  }, [activeLanguage, editor, isReadOnly, translations]);
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
@@ -558,10 +479,7 @@ const BlogFormModal = ({
   };
 
   const handleOpenPreview = () => {
-    if (!editor || !previewEditor) return;
-
-    previewEditor.commands.setContent(editor.getJSON() as never);
-    previewEditor.setEditable(false);
+    if (!editor) return;
 
     setPreviewOpen(true);
   };
@@ -780,7 +698,7 @@ const BlogFormModal = ({
                     type="button"
                     className="blog-preview-button"
                     onClick={handleOpenPreview}
-                    disabled={!editor || !previewEditor}>
+                    disabled={!editor}>
                     <FileText size={16} />
                     پیش‌نمایش مقاله
                   </button>
@@ -1547,103 +1465,32 @@ const BlogFormModal = ({
             )}
           </footer>
         </form>
-
         {previewOpen && (
-          <div
-            className="blog-preview-backdrop"
-            onMouseDown={() => setPreviewOpen(false)}>
-            <section
-              className="blog-preview-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="پیش‌نمایش مقاله"
-              onMouseDown={(event) => event.stopPropagation()}>
-              <header className="blog-preview-header">
-                <div>
-                  <span className="blog-modal-eyebrow">ARTICLE PREVIEW</span>
-                  <h2>پیش‌نمایش مقاله</h2>
-                  <p>نمایش محتوای مقاله قبل از ذخیره و انتشار</p>
-                </div>
-
-                <button
-                  type="button"
-                  className="blog-modal-close"
-                  onClick={() => setPreviewOpen(false)}
-                  aria-label="بستن پیش‌نمایش">
-                  <X size={20} />
-                </button>
-              </header>
-
-              <div
-                className="blog-preview-body"
-                dir={
-                  LANGUAGES.find((item) => item.value === activeLanguage)
-                    ?.direction
-                }>
-                {selectedCover?.url && (
-                  <div className="blog-preview-cover">
-                    <img
-                      src={resolveMediaUrl(selectedCover.url)}
-                      alt={selectedCover.alt ?? currentTranslation.title}
-                    />
-                  </div>
-                )}
-
-                <article className="blog-preview-article">
-                  <div className="blog-preview-meta">
-                    <span>
-                      {
-                        LANGUAGES.find((item) => item.value === activeLanguage)
-                          ?.label
-                      }
-                    </span>
-
-                    <span>
-                      {status === "PUBLISHED"
-                        ? "منتشر شده"
-                        : status === "SCHEDULED"
-                          ? "زمان‌بندی شده"
-                          : status === "ARCHIVED"
-                            ? "بایگانی شده"
-                            : "پیش‌نویس"}
-                    </span>
-
-                    {featured && <span>مقاله ویژه</span>}
-                  </div>
-
-                  <h1 className="blog-preview-title">
-                    {currentTranslation.title || "عنوان مقاله"}
-                  </h1>
-
-                  {currentTranslation.excerpt && (
-                    <p className="blog-preview-excerpt">
-                      {currentTranslation.excerpt}
-                    </p>
-                  )}
-
-                  <div className="blog-preview-divider" />
-
-                  <div className="blog-preview-content">
-                    <EditorContent editor={previewEditor} />
-                  </div>
-                </article>
+          <Suspense
+            fallback={
+              <div className="blog-modal-loading" role="status">
+                در حال بارگذاری پیش‌نمایش مقاله...
               </div>
-
-              <footer className="blog-preview-footer">
-                <span>
-                  <Check size={15} />
-                  حالت فقط‌خواندنی
-                </span>
-
-                <button
-                  type="button"
-                  className="blog-save-button"
-                  onClick={() => setPreviewOpen(false)}>
-                  بازگشت به ویرایشگر
-                </button>
-              </footer>
-            </section>
-          </div>
+            }>
+            <BlogArticlePreview
+              content={currentTranslation.content}
+              title={currentTranslation.title}
+              excerpt={currentTranslation.excerpt}
+              direction={
+                LANGUAGES.find((item) => item.value === activeLanguage)
+                  ?.direction ?? "rtl"
+              }
+              languageLabel={
+                LANGUAGES.find((item) => item.value === activeLanguage)
+                  ?.label ?? ""
+              }
+              statusLabel={status === "PUBLISHED" ? "منتشر شده" : "پیش‌نویس"}
+              featured={featured}
+              coverUrl={selectedCover?.url}
+              coverAlt={selectedCover?.alt ?? currentTranslation.title}
+              onClose={() => setPreviewOpen(false)}
+            />
+          </Suspense>
         )}
 
         {mediaPickerOpen && (
