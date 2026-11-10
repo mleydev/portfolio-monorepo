@@ -8,16 +8,17 @@ import cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
 
+import type { Express } from 'express';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Serialize BigInt values in JSON responses
-  app
-    .getHttpAdapter()
-    .getInstance()
-    .set('json replacer', (_key: string, value: unknown) =>
-      typeof value === 'bigint' ? value.toString() : value,
-    );
+  const expressInstance = app.getHttpAdapter().getInstance() as Express;
+
+  expressInstance.set('json replacer', (_key: string, value: unknown) =>
+    typeof value === 'bigint' ? value.toString() : value,
+  );
 
   // API versioning
   app.setGlobalPrefix('api/v1');
@@ -38,11 +39,7 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // CORS configuration
-  // const corsOrigins = 'http://localhost:4173'
-  const corsOrigins = 'http://localhost:5173'
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  const corsOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
   app.enableCors({
     origin: corsOrigins,
