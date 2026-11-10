@@ -1,6 +1,7 @@
 ﻿import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -17,6 +18,8 @@ import { UpdateHomeSectionDto } from './dto/update-home-section.dto';
 import { ReorderHomeSectionsDto } from './dto/reorder-home-sections.dto';
 import { CreateHomeSectionDto } from './dto/create-home-section.dto';
 import { UpsertSiteSettingDto } from './dto/upsert-site-setting.dto';
+import { CreateSocialLinkDto } from './dto/create-social-link.dto';
+import { UpdateSocialLinkDto } from './dto/update-social-link.dto';
 
 @ApiTags('Admin Site Management')
 @ApiBearerAuth('JWT-auth')
@@ -54,5 +57,25 @@ export class SiteManagementAdminController {
   @Patch('site-settings/:key')
   upsertSetting(@Param('key') key: string, @Body() dto: UpsertSiteSettingDto) {
     return this.siteManagementService.upsertSetting(key, dto);
+  }
+
+  @Post('social-links')
+  createSocialLink(@Body() dto: CreateSocialLinkDto) {
+    return this.siteManagementService.createSocialLink(dto);
+  }
+
+  @Get('social-links')
+  findAllSocialLinks() {
+    return this.siteManagementService.findAllSocialLinksAdmin();
+  }
+
+  @Patch('social-links/:id')
+  updateSocialLink(@Param('id') id: string, @Body() dto: UpdateSocialLinkDto) {
+    return this.siteManagementService.updateSocialLink(id, dto);
+  }
+
+  @Delete('social-links/:id')
+  deleteSocialLink(@Param('id') id: string) {
+    return this.siteManagementService.deleteSocialLink(id);
   }
 }

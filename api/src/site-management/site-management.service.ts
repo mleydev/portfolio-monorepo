@@ -9,10 +9,31 @@ import { UpdateHomeSectionDto } from './dto/update-home-section.dto';
 import { ReorderHomeSectionsDto } from './dto/reorder-home-sections.dto';
 import { CreateHomeSectionDto } from './dto/create-home-section.dto';
 import { UpsertSiteSettingDto } from './dto/upsert-site-setting.dto';
+import { CreateSocialLinkDto } from './dto/create-social-link.dto';
+import { UpdateSocialLinkDto } from './dto/update-social-link.dto';
 
 @Injectable()
 export class SiteManagementService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async getDefaultLanguage(): Promise<Language> {
+    const setting = await this.prisma.siteSettings.findUnique({
+      where: { key: 'site' },
+      select: { value: true },
+    });
+
+    const value = setting?.value as Record<string, unknown> | null;
+    const configuredLanguage = value?.defaultLanguage;
+
+    if (
+      typeof configuredLanguage === 'string' &&
+      Object.values(Language).includes(configuredLanguage as Language)
+    ) {
+      return configuredLanguage as Language;
+    }
+
+    return Language.fa;
+  }
 
   private validateUniqueLanguages(translations: { language: Language }[]) {
     const languages = translations.map((translation) => translation.language);
@@ -60,12 +81,7 @@ export class SiteManagementService {
         });
 
     if (dto.translations?.length) {
-      const languages = dto.translations.map((item) => item.language);
-
-      if (new Set(languages).size !== languages.length) {
-        throw new Error('Duplicate translation languages are not allowed.');
-      }
-
+      this.validateUniqueLanguages(dto.translations);
       await this.prisma.$transaction(
         dto.translations.map((translation) =>
           this.prisma.siteSettingsTranslation.upsert({
@@ -99,14 +115,14 @@ export class SiteManagementService {
   async findPublicSettings(lang: Language) {
     const publicKeys = ['site', 'contact', 'social-links', 'seo', 'footer'];
 
+    const defaultLanguage = await this.getDefaultLanguage();
+
     const settings = await this.prisma.siteSettings.findMany({
       where: {
         key: { in: publicKeys },
       },
       include: {
-        translations: {
-          where: { language: lang },
-        },
+        translations: true,
       },
       orderBy: {
         key: 'asc',
@@ -114,10 +130,15 @@ export class SiteManagementService {
     });
 
     return Object.fromEntries(
-      settings.map((setting) => [
-        setting.key,
-        setting.translations[0]?.value ?? setting.value,
-      ]),
+      settings.map((setting) => {
+        const translation =
+          setting.translations.find((item) => item.language === lang) ??
+          setting.translations.find(
+            (item) => item.language === defaultLanguage,
+          );
+
+        return [setting.key, translation?.value ?? setting.value];
+      }),
     );
   }
 
@@ -192,7 +213,9 @@ export class SiteManagementService {
                     translation;
 
                   if (!language) {
-                    throw new Error('Translation language is required.');
+                    throw new BadRequestException(
+                      'Translation language is required.',
+                    );
                   }
 
                   const jsonContent = content as
@@ -234,7 +257,7 @@ export class SiteManagementService {
     const ids = dto.sections.map((section) => section.id);
 
     if (new Set(ids).size !== ids.length) {
-      throw new Error('Duplicate section IDs are not allowed.');
+      throw new BadRequestException('Duplicate section IDs are not allowed.');
     }
 
     await this.prisma.$transaction(
@@ -251,21 +274,125 @@ export class SiteManagementService {
     return this.findAllAdmin();
   }
 
-  findPublicSections(lang: Language) {
-    return this.prisma.pageSection.findMany({
+  async findPublicSections(lang: Language) {
+    const defaultLanguage = await this.getDefaultLanguage();
+
+    const sections = await this.prisma.pageSection.findMany({
       where: {
         enabled: true,
-        translations: {
-          some: { language: lang },
-        },
       },
       include: {
-        translations: {
-          where: { language: lang },
-        },
+        translations: true,
       },
       orderBy: {
         sortOrder: 'asc',
+      },
+    });
+
+    return sections.map((section) => {
+      const translation =
+        section.translations.find((item) => item.language === lang) ??
+        section.translations.find(
+          (item) => item.language === defaultLanguage,
+        ) ??
+        section.translations[0];
+
+      return {
+        ...section,
+        translations: translation ? [translation] : [],
+      };
+    });
+  }
+
+  async findAllSocialLinksAdmin() {
+    return this.prisma.socialLink.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  async createSocialLink(dto: CreateSocialLinkDto) {
+    const existing = await this.prisma.socialLink.findFirst({
+      where: { url: dto.url },
+      select: { id: true },
+    });
+
+    if (existing) {
+      throw new BadRequestException(
+        'A social link with this URL already exists.',
+      );
+    }
+
+    return this.prisma.socialLink.create({
+      data: {
+        platform: dto.platform,
+        label: dto.label,
+        url: dto.url,
+        icon: dto.icon,
+        enabled: dto.enabled ?? true,
+        sortOrder: dto.sortOrder ?? 0,
+      },
+    });
+  }
+
+  async updateSocialLink(id: string, dto: UpdateSocialLinkDto) {
+    const existing = await this.prisma.socialLink.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Social link not found.');
+    }
+
+    if (dto.url !== undefined && dto.url !== existing.url) {
+      const duplicate = await this.prisma.socialLink.findFirst({
+        where: {
+          url: dto.url,
+          NOT: { id },
+        },
+        select: { id: true },
+      });
+
+      if (duplicate) {
+        throw new BadRequestException(
+          'A social link with this URL already exists.',
+        );
+      }
+    }
+
+    return this.prisma.socialLink.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  async deleteSocialLink(id: string) {
+    const existing = await this.prisma.socialLink.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Social link not found.');
+    }
+
+    return this.prisma.socialLink.delete({
+      where: { id },
+    });
+  }
+
+  async findPublicSocialLinks() {
+    return this.prisma.socialLink.findMany({
+      where: {
+        enabled: true,
+      },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      select: {
+        id: true,
+        platform: true,
+        label: true,
+        url: true,
+        icon: true,
+        sortOrder: true,
       },
     });
   }

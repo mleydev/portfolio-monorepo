@@ -20,6 +20,11 @@ export class SiteManagementController {
     return this.siteManagementService.findPublicSettings(lang);
   }
 
+  @Get('social-links')
+  findPublicSocialLinks() {
+    return this.siteManagementService.findPublicSocialLinks();
+  }
+
   private validateLanguage(lang: Language) {
     if (!Object.values(Language).includes(lang)) {
       throw new BadRequestException('Unsupported language.');
