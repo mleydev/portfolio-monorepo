@@ -22,6 +22,7 @@ import {
   Sun,
   Users,
   X,
+  Share2,
 } from "lucide-react";
 import "./App.css";
 import { BASE_URL } from "./lib/api";
@@ -52,6 +53,10 @@ const SiteManagementPage = lazy(
 );
 
 const UsersPage = lazy(() => import("./features/users/UsersPage"));
+
+const SocialLinksPage = lazy(
+  () => import("./features/social-links/SocialLinksPage"),
+);
 
 type NavItem = {
   label: string;
@@ -84,6 +89,7 @@ const navigation: { title: string; items: NavItem[] }[] = [
     items: [
       { label: "مدیریت سایت", icon: Settings2 },
       { label: "کاربران و دسترسی‌ها", icon: ShieldCheck },
+      { label: "شبکه‌های اجتماعی", icon: Share2 },
     ],
   },
 ];
@@ -492,6 +498,8 @@ function App() {
             }>
             {activePage === "سوابق کاری" ? (
               <ExperiencePage />
+            ) : activePage === "شبکه‌های اجتماعی" ? (
+              <SocialLinksPage />
             ) : activePage === "کاربران و دسترسی‌ها" ? (
               <UsersPage />
             ) : activePage === "مدیریت سایت" ? (

@@ -12,7 +12,7 @@ import {
 import { EditorContent, useEditor } from "@tiptap/react";
 import { createEditorExtensions } from "./extensions/blog-editor.extensions";
 
-import api from "../../lib/api";
+import api, { BASE_URL } from "../../lib/api";
 import type {
   BlogArticle,
   BlogArticleStatus,

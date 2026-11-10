@@ -43,7 +43,7 @@ import type {
 
 import "./BlogPage.css";
 
-import api from "../../lib/api";
+import api, { BASE_URL } from "../../lib/api";
 
 type ViewMode = "grid" | "list";
 

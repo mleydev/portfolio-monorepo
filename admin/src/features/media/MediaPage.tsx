@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 
-import api from "../../lib/api";
+import api, { BASE_URL } from "../../lib/api";
 
 import "./MediaPage.css";
 

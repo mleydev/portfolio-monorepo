@@ -22,7 +22,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import api from "../../lib/api";
+import api, { BASE_URL } from "../../lib/api";
 import "./ProjectsPage.css";
 
 type Language = "fa" | "en" | "tr" | "ar";

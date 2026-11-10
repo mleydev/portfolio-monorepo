@@ -9,7 +9,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import api from "../../lib/api";
+import api, { BASE_URL } from "../../lib/api";
 import "./ProfilePage.css";
 
 type Language = "fa" | "en" | "tr" | "ar";
