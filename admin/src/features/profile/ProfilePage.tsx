@@ -124,8 +124,7 @@ const resolveMediaUrl = (url: string | null): string => {
     return url;
   }
 
-  const apiBaseUrl =
-    import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api/v1";
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? BASE_URL;
 
   const apiOrigin = new URL(apiBaseUrl).origin;
 
@@ -373,8 +372,7 @@ const ProfilePage = () => {
     if (!url) return "";
 
     try {
-      const apiBaseUrl =
-        import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api/v1";
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? BASE_URL;
 
       const apiOrigin = new URL(apiBaseUrl).origin;
 

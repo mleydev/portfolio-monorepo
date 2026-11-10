@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import "./App.css";
+import { BASE_URL } from "./lib/api";
 const ProjectsPage = lazy(() => import("./features/projects/ProjectsPage"));
 
 const ProfilePage = lazy(() => import("./features/profile/ProfilePage"));
@@ -172,8 +173,7 @@ type AdminProfile = {
   translations: ProfileTranslation[];
 };
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000/api/v1";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? BASE_URL;
 
 const resolveMediaUrl = (url: string | null) => {
   if (!url) return "";

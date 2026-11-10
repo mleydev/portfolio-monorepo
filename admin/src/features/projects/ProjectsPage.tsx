@@ -178,7 +178,7 @@ function resolveMediaUrl(value?: string | null): string {
   if (!value) return "";
   if (/^https?:\/\//i.test(value)) return value;
 
-  const baseUrl = api.defaults.baseURL ?? "http://localhost:4000/api/v1";
+  const baseUrl = api.defaults.baseURL ?? BASE_URL;
   try {
     const apiOrigin = new URL(baseUrl, window.location.origin).origin;
     return new URL(value, apiOrigin).toString();
@@ -485,7 +485,7 @@ function ProjectsPage() {
 
       // Keep the API-provided path in the database; resolve it to an absolute
       // URL only when rendering the image in the browser.
-      const baseUrl = api.defaults.baseURL ?? "http://localhost:4000/api/v1";
+      const baseUrl = api.defaults.baseURL ?? BASE_URL;
 
       const coverImageUrl = new URL(
         response.data.url,

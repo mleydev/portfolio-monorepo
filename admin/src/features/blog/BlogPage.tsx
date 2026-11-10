@@ -53,7 +53,7 @@ const resolveMediaUrl = (url?: string | null) => {
   if (!url) return "";
 
   try {
-    const baseUrl = api.defaults.baseURL ?? "http://localhost:4000/api/v1";
+    const baseUrl = api.defaults.baseURL ?? BASE_URL;
 
     return new URL(url, new URL(baseUrl).origin).toString();
   } catch {

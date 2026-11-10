@@ -1,26 +1,104 @@
+
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+
+  --background: #050817;
+  --background-secondary: #0a1024;
+  --surface: #0d1730;
+  --surface-hover: #142344;
+
+  --foreground: #f3f5ff;
+  --muted: #9aa8c7;
+
+  --primary: #7138f5;
+  --primary-light: #a855f7;
+  --primary-glow: rgba(113, 56, 245, 0.35);
+
+  --border: rgba(112, 139, 210, 0.16);
+  --card-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+
+.light {
+  color-scheme: light;
+
+  --background: #f3f6ff;
+  --background-secondary: #eaf0ff;
+  --surface: #ffffff;
+  --surface-hover: #eef1ff;
+
+  --foreground: #111a36;
+  --muted: #66769b;
+
+  --primary: #7138f5;
+  --primary-light: #8b5cf6;
+  --primary-glow: rgba(113, 56, 245, 0.14);
+
+  --border: rgba(65, 91, 155, 0.13);
+  --card-shadow: 0 12px 40px rgba(39, 58, 110, 0.08);
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-background-secondary: var(--background-secondary);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-border: var(--border);
+
+  --font-sans: "Vazirmatn", sans-serif;
+  --font-english: "Inter", sans-serif;
+
+  --shadow-card: var(--card-shadow);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
+  min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Vazirmatn", sans-serif;
+  transition:
+    background-color 250ms ease,
+    color 250ms ease;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: rgba(113, 56, 245, 0.35);
+  color: #ffffff;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 999px;
 }
