@@ -67,31 +67,36 @@ async function fetchApi<T>(endpoint: string): Promise<T> {
 
   if (!response.ok) {
     throw new Error(
-      `API request failed: ${response.status} ${response.statusText} (${endpoint})`
+      `API request failed: ${response.status} ${response.statusText} (${endpoint})`,
     );
   }
 
   return response.json() as Promise<T>;
 }
 
-export async function getHomeSections(
-  language = "fa"
-): Promise<CollectionResponse<HomeSection>> {
-  return fetchApi<CollectionResponse<HomeSection>>(
-    `/site/home-sections?lang=${encodeURIComponent(language)}`
+export async function getHomeSections(language = "fa"): Promise<HomeSection[]> {
+  // Fetches homepage sections as a direct array from the API.
+  return fetchApi<HomeSection[]>(
+    `/site/home-sections?lang=${encodeURIComponent(language)}`,
   );
 }
-
-export async function getSiteSettings(
-  language = "fa"
-): Promise<SiteSettings> {
+export async function getSiteSettings(language = "fa"): Promise<SiteSettings> {
   return fetchApi<SiteSettings>(
-    `/site/settings?lang=${encodeURIComponent(language)}`
+    `/site/settings?lang=${encodeURIComponent(language)}`,
   );
 }
 
-export async function getSocialLinks(): Promise<
-  CollectionResponse<SocialLink>
-> {
-  return fetchApi<CollectionResponse<SocialLink>>("/site/social-links");
+export async function getSocialLinks(): Promise<SocialLink[]> {
+  // Fetches enabled social links as a direct array from the API.
+  return fetchApi<SocialLink[]>("/site/social-links");
+}
+
+// Returns the translation matching the requested language.
+export function getSectionTranslation(
+  section: HomeSection,
+  language = "fa",
+): HomeSectionTranslation | undefined {
+  return section.translations.find(
+    (translation) => translation.language === language,
+  );
 }

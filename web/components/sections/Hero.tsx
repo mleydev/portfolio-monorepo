@@ -1,72 +1,118 @@
-import { ArrowDown, ArrowLeft, Download, Mail, Send } from "lucide-react";
+import { ArrowDown, ArrowLeft, Download, Globe, Mail } from "lucide-react";
 
-function GithubIcon({ size = 19 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true">
-      <path d="M12 .9a11.1 11.1 0 0 0-3.51 21.63c.56.1.76-.24.76-.54v-2.1c-3.1.67-3.76-1.32-3.76-1.32-.5-1.3-1.24-1.65-1.24-1.65-1.01-.69.08-.68.08-.68 1.12.08 1.71 1.15 1.71 1.15 1 1.71 2.62 1.22 3.26.93.1-.72.39-1.22.71-1.5-2.48-.28-5.09-1.24-5.09-5.51 0-1.22.44-2.22 1.15-3-.12-.28-.5-1.42.11-2.95 0 0 .94-.3 3.05 1.14a10.6 10.6 0 0 1 5.56 0c2.11-1.44 3.04-1.14 3.04-1.14.61 1.53.23 2.67.12 2.95.71.78 1.14 1.78 1.14 3.01 0 4.28-2.61 5.22-5.1 5.5.4.35.76 1.02.76 2.06v3.06c0 .3.2.65.77.54A11.1 11.1 0 0 0 12 .9Z" />
-    </svg>
-  );
+import { siGithub } from "simple-icons";
+
+import type { HomeSectionTranslation, SocialLink } from "@/lib/api";
+
+// Defines the dynamic content and social links received from the API.
+interface HeroProps {
+  content?: HomeSectionTranslation;
+  socialLinks: SocialLink[];
 }
 
-function LinkedInIcon({ className }: { className?: string }) {
+// Defines the structure of a brand icon.
+interface BrandIcon {
+  path: string;
+}
+
+// Maps supported platforms to available Simple Icons.
+const socialIconMap: Record<string, BrandIcon> = {
+  github: siGithub,
+};
+
+// Renders the LinkedIn brand icon using its SVG path.
+function LinkedInIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-      className={className}>
+      className="size-[19px] fill-current"
+      aria-hidden="true">
       <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.35V9h3.414v1.561h.049c.476-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286ZM5.337 7.433a2.062 2.062 0 1 1 0-4.124 2.062 2.062 0 0 1 0 4.124ZM7.119 20.452H3.554V9h3.565v11.452ZM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003Z" />
     </svg>
   );
 }
 
-export default function Hero() {
+// Resolves and renders the appropriate icon for each social platform.
+function SocialIcon({
+  platform,
+  icon,
+}: {
+  platform: string;
+  icon: string | null;
+}) {
+  const normalizedPlatform = platform.trim().toLowerCase();
+  const normalizedIcon = (icon || "").trim().toLowerCase();
+
+  // Uses the custom LinkedIn SVG when the platform is LinkedIn.
+  if (
+    normalizedPlatform === "linkedin" ||
+    normalizedIcon.includes("linkedin")
+  ) {
+    return <LinkedInIcon />;
+  }
+
+  // Resolves the available Simple Icon using the configured icon name.
+  const brand =
+    socialIconMap[normalizedIcon] ?? socialIconMap[normalizedPlatform];
+
+  if (brand) {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="size-[19px] fill-current"
+        aria-hidden="true">
+        <path d={brand.path} />
+      </svg>
+    );
+  }
+
+  // Displays a generic icon for unsupported social platforms.
+  return <Globe size={19} />;
+}
+
+// Renders the hero section using content provided by the CMS.
+export default function Hero({ content, socialLinks }: HeroProps) {
   return (
     <section
       id="home"
       className="relative isolate flex min-h-[680px] items-center overflow-hidden bg-background pt-24 lg:min-h-[760px]">
-      {/* Background effects */}
+      {/* Renders decorative background effects. */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute -right-40 top-20 size-[550px] rounded-full bg-primary/15 blur-[140px]" />
         <div className="absolute -left-40 bottom-0 size-[400px] rounded-full bg-purple-700/10 blur-[120px]" />
-
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_45%,rgba(113,56,245,0.10),transparent_38%)]" />
       </div>
 
       <div className="mx-auto grid w-full max-w-[1440px] items-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-2 lg:gap-8 lg:px-12">
-        {/* Introduction */}
+        {/* Displays the introduction and CMS-managed content. */}
         <div className="order-2 text-center lg:order-1 lg:text-right">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-xs text-primary-light">
             <span className="size-2 animate-pulse rounded-full bg-green-400" />
             آماده همکاری در پروژه‌های جدید
           </div>
 
+          {/* Displays the hero title managed through the admin panel. */}
           <h1 className="text-3xl font-bold leading-[1.7] tracking-tight text-foreground sm:text-4xl lg:text-[48px]">
-            سلام، من{" "}
             <span className="bg-gradient-to-l from-primary-light to-purple-400 bg-clip-text text-transparent">
-              مهدی لیلایی
-            </span>{" "}
-            هستم
+              {content?.title || "سلام، من مهدی لیلایی هستم"}
+            </span>
           </h1>
 
-          <h2 className="mt-4 text-base font-semibold text-foreground sm:text-lg">
-            توسعه‌دهنده وب با تخصص در{" "}
-            <span className="text-primary-light">React</span>،{" "}
-            <span className="text-primary-light">Next.js</span> و{" "}
-            <span className="text-primary-light">NestJS</span>
-          </h2>
+          {/* Displays the optional CMS subtitle. */}
+          {content?.subtitle && (
+            <h2 className="mt-4 text-base font-semibold text-foreground sm:text-lg">
+              {content.subtitle}
+            </h2>
+          )}
 
-          <p className="mx-auto mt-5 max-w-xl text-sm leading-8 text-muted lg:mx-0">
-            علاقه‌مند به ساخت تجربه‌های کاربری مدرن، سریع و کاربردی. از طراحی
-            رابط کاربری تا توسعه بک‌اند، تلاش می‌کنم ایده‌ها را به محصولات
-            دیجیتال باکیفیت تبدیل کنم.
-          </p>
+          {/* Displays the optional CMS description. */}
+          {content?.description && (
+            <p className="mx-auto mt-5 max-w-xl text-sm leading-8 text-muted lg:mx-0">
+              {content.description}
+            </p>
+          )}
 
+          {/* Provides navigation to projects and the downloadable resume. */}
           <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
             <a
               href="#projects"
@@ -84,31 +130,30 @@ export default function Hero() {
             </a>
           </div>
 
-          <div className="mt-9 flex items-center justify-center gap-5 lg:justify-start">
-            {[
-              { icon: GithubIcon, href: "https://github.com", label: "GitHub" },
-              {
-                icon: LinkedInIcon,
-                href: "https://linkedin.com",
-                label: "LinkedIn",
-              },
-              { icon: Send, href: "https://t.me", label: "Telegram" },
-              { icon: Mail, href: "mailto:mehdi@example.com", label: "Email" },
-            ].map(({ icon: Icon, href, label }) => (
-              <a
-                key={label}
-                href={href}
-                target={href.startsWith("http") ? "_blank" : undefined}
-                rel={href.startsWith("http") ? "noreferrer" : undefined}
-                aria-label={label}
-                className="text-muted transition hover:-translate-y-1 hover:text-primary-light">
-                <Icon size={19} />
-              </a>
-            ))}
-          </div>
+          {/* Renders enabled social links retrieved from the API. */}
+          {socialLinks.length > 0 && (
+            <div className="mt-9 flex items-center justify-center gap-5 lg:justify-start">
+              {socialLinks.map((link) => {
+                const isExternal = /^https?:\/\//i.test(link.url);
+
+                return (
+                  <a
+                    key={link.id}
+                    href={link.url}
+                    target={isExternal ? "_blank" : undefined}
+                    rel={isExternal ? "noopener noreferrer" : undefined}
+                    aria-label={link.label}
+                    title={link.label}
+                    className="text-muted transition hover:-translate-y-1 hover:text-primary-light">
+                    <SocialIcon platform={link.platform} icon={link.icon} />
+                  </a>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Visual */}
+        {/* Displays the visual identity of the portfolio. */}
         <div className="relative order-1 mx-auto flex aspect-square w-full max-w-[480px] items-center justify-center lg:order-2">
           <div className="absolute size-[78%] rounded-full border border-primary/20 shadow-[0_0_80px_rgba(113,56,245,0.2)]" />
 
@@ -144,6 +189,7 @@ export default function Hero() {
         </div>
       </div>
 
+      {/* Provides a shortcut to the about section. */}
       <a
         href="#about"
         aria-label="Scroll to about section"
