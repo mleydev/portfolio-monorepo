@@ -186,3 +186,32 @@ export async function getProjects(
     `/projects?lang=${encodeURIComponent(language)}&page=${page}&limit=${limit}`,
   );
 }
+
+// Fetches a published project by its unique slug.
+export async function getProjectBySlug(
+  slug: string,
+  language = "fa",
+): Promise<Project | null> {
+  const response = await fetch(
+    `${API_BASE_URL}/projects/${encodeURIComponent(slug)}?lang=${encodeURIComponent(language)}`,
+    {
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
+    },
+  );
+
+  // Returns null when the project does not exist for the requested language.
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      `API request failed: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  return response.json() as Promise<Project>;
+}
