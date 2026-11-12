@@ -27,6 +27,50 @@ export interface CollectionResponse<T> {
   Count: number;
 }
 
+// Defines the translated content of a portfolio project.
+export interface ProjectTranslation {
+  id: string;
+  language: string;
+  title: string;
+  summary: string | null;
+  description: string;
+  content: string | null;
+  role: string | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  projectId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Defines a published portfolio project returned by the API.
+export interface Project {
+  id: string;
+  slug: string;
+  coverImage: string | null;
+  demoUrl: string | null;
+  repositoryUrl: string | null;
+  technologies: string[];
+  featured: boolean;
+  published: boolean;
+  publishedAt: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  translations: ProjectTranslation[];
+}
+
+// Defines the paginated projects API response.
+export interface ProjectsResponse {
+  data: Project[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export interface SiteSettings {
   site: {
     title: string;
@@ -129,5 +173,16 @@ export function getSectionTranslation(
 ): HomeSectionTranslation | undefined {
   return section.translations.find(
     (translation) => translation.language === language,
+  );
+}
+
+// Fetches published projects in the requested language.
+export async function getProjects(
+  language = "fa",
+  page = 1,
+  limit = 50,
+): Promise<ProjectsResponse> {
+  return fetchApi<ProjectsResponse>(
+    `/projects?lang=${encodeURIComponent(language)}&page=${page}&limit=${limit}`,
   );
 }
