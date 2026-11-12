@@ -662,3 +662,155 @@
     flex: 1 1 140px;
   }
 }
+
+
+/* Section editor */
+
+.site-form-field select {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  background: var(--input-bg, rgba(0, 0, 0, 0.16));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 9px;
+  outline: none;
+  font: inherit;
+  font-size: 12px;
+}
+
+.site-form-field select:focus {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px #8b5cf61c;
+}
+
+.site-form-field select option {
+  color: var(--text-primary);
+  background: var(--panel-bg, #171522);
+}
+
+.site-editor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+  padding: 20px;
+  background: var(--card-bg, rgba(255, 255, 255, 0.025));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: 13px;
+}
+
+.site-editor-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.site-editor-section-heading h3 {
+  margin: 0 0 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.site-editor-section-heading p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.site-editor-section-heading > svg {
+  color: #a78bfa;
+}
+
+.site-section-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.site-color-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 5px 10px;
+  background: var(--input-bg, rgba(0, 0, 0, 0.16));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 9px;
+}
+
+.site-color-control input {
+  width: 35px;
+  height: 30px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.site-color-control code {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.site-section-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.site-section-checkboxes label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.site-section-checkboxes input {
+  width: 16px;
+  height: 16px;
+  accent-color: #8b5cf6;
+}
+
+.site-advanced-settings {
+  padding: 15px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: 11px;
+}
+
+.site-advanced-settings summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  list-style: none;
+}
+
+.site-advanced-settings summary::-webkit-details-marker {
+  display: none;
+}
+
+.site-advanced-settings[open] summary {
+  margin-bottom: 16px;
+  color: #c4b5fd;
+}
+
+.site-advanced-settings textarea {
+  min-height: 160px;
+}
+
+@media (max-width: 650px) {
+  .site-section-settings-grid,
+  .site-section-checkboxes {
+    grid-template-columns: 1fr;
+  }
+
+  .site-editor-section {
+    padding: 15px;
+  }
+}

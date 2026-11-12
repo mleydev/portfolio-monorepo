@@ -90,6 +90,64 @@ const SETTING_KEYS = [
   { value: "footer", label: "پاورقی سایت" },
 ];
 
+const SECTION_TYPES = [
+  { value: "hero", label: "معرفی اصلی (Hero)" },
+  { value: "about", label: "درباره من (About)" },
+  { value: "projects", label: "پروژه‌ها (Projects)" },
+  { value: "skills", label: "مهارت‌ها (Skills)" },
+  { value: "language-skills", label: "مهارت‌های زبانی" },
+  { value: "experience", label: "سوابق کاری (Experience)" },
+  { value: "blog", label: "مقالات (Blog)" },
+  { value: "contact", label: "ارتباط با من (Contact)" },
+  { value: "custom", label: "بخش سفارشی (Custom)" },
+];
+
+const readJsonObject = (value: string): Record<string, unknown> => {
+  try {
+    const parsed: unknown = JSON.parse(value);
+
+    if (
+      parsed !== null &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed)
+    ) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Keep the editor usable while JSON is being edited.
+  }
+
+  return {};
+};
+
+const getSettingValue = (
+  settings: string,
+  key: string,
+  fallback: string,
+): string => {
+  const value = readJsonObject(settings)[key];
+
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : fallback;
+};
+
+const getSettingBoolean = (
+  settings: string,
+  key: string,
+  fallback: boolean,
+): boolean => {
+  const value = readJsonObject(settings)[key];
+
+  return typeof value === "boolean" ? value : fallback;
+};
+
+const getTranslationContentValue = (content: string, key: string): string => {
+  const value = readJsonObject(content)[key];
+
+  return typeof value === "string" ? value : "";
+};
+
 const createEmptyTranslations = (): Record<Language, TranslationForm> => ({
   fa: { title: "", subtitle: "", description: "", content: "{}" },
   en: { title: "", subtitle: "", description: "", content: "{}" },
@@ -179,14 +237,22 @@ function SiteManagementPage() {
   const [editingSection, setEditingSection] = useState<HomeSection | null>(
     null,
   );
+
   const [sectionForm, setSectionForm] =
     useState<SectionForm>(EMPTY_SECTION_FORM);
+
   const [activeLanguage, setActiveLanguage] = useState<Language>("fa");
 
   const [selectedSetting, setSelectedSetting] = useState("site");
+
   const [settingForm, setSettingForm] = useState<SettingForm>({
     value: "{}",
-    translations: { fa: "{}", en: "{}", tr: "{}", ar: "{}" },
+    translations: {
+      fa: "{}",
+      en: "{}",
+      tr: "{}",
+      ar: "{}",
+    },
   });
 
   const [notice, setNotice] = useState("");
@@ -204,6 +270,7 @@ function SiteManagementPage() {
 
       setSections(sectionsResponse.data);
       setSettings(settingsResponse.data);
+
       setSettingForm(createSettingForm(settingsResponse.data, selectedSetting));
     } catch (requestError) {
       setError(getErrorMessage(requestError));
@@ -226,6 +293,7 @@ function SiteManagementPage() {
 
         setSections(sectionsResponse.data);
         setSettings(settingsResponse.data);
+        setSettingForm(createSettingForm(settingsResponse.data, "site"));
       } catch (requestError) {
         if (!cancelled) {
           setError(getErrorMessage(requestError));
@@ -246,11 +314,13 @@ function SiteManagementPage() {
 
   const openCreateSection = () => {
     setEditingSection(null);
+
     setSectionForm({
       ...EMPTY_SECTION_FORM,
       translations: createEmptyTranslations(),
       sortOrder: sections.length,
     });
+
     setActiveLanguage("fa");
     setError("");
     setSectionModalOpen(true);
@@ -269,6 +339,7 @@ function SiteManagementPage() {
     });
 
     setEditingSection(section);
+
     setSectionForm({
       key: section.key,
       type: section.type,
@@ -277,6 +348,7 @@ function SiteManagementPage() {
       settings: formatJson(section.settings),
       translations,
     });
+
     setActiveLanguage("fa");
     setError("");
     setSectionModalOpen(true);
@@ -295,8 +367,55 @@ function SiteManagementPage() {
     }));
   };
 
+  const updateSettingField = (
+    key: string,
+    value: string | number | boolean,
+  ) => {
+    setSectionForm((current) => {
+      const currentSettings = readJsonObject(current.settings);
+
+      return {
+        ...current,
+        settings: JSON.stringify(
+          {
+            ...currentSettings,
+            [key]: value,
+          },
+          null,
+          2,
+        ),
+      };
+    });
+  };
+
+  const updateContentField = (key: string, value: string) => {
+    setSectionForm((current) => {
+      const translation = current.translations[activeLanguage];
+      const content = readJsonObject(translation.content);
+
+      return {
+        ...current,
+        translations: {
+          ...current.translations,
+          [activeLanguage]: {
+            ...translation,
+            content: JSON.stringify(
+              {
+                ...content,
+                [key]: value,
+              },
+              null,
+              2,
+            ),
+          },
+        },
+      };
+    });
+  };
+
   const handleSectionSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     setError("");
     setNotice("");
 
@@ -344,13 +463,16 @@ function SiteManagementPage() {
 
       if (editingSection) {
         await api.patch(`/admin/home-sections/${editingSection.id}`, payload);
+
         setNotice("بخش با موفقیت به‌روزرسانی شد.");
       } else {
         await api.post("/admin/home-sections", payload);
+
         setNotice("بخش جدید با موفقیت ایجاد شد.");
       }
 
       setSectionModalOpen(false);
+
       await fetchData();
     } catch (requestError) {
       setError(
@@ -386,7 +508,9 @@ function SiteManagementPage() {
 
   const moveSection = async (section: HomeSection, direction: -1 | 1) => {
     const ordered = [...sections].sort((a, b) => a.sortOrder - b.sortOrder);
+
     const currentIndex = ordered.findIndex((item) => item.id === section.id);
+
     const targetIndex = currentIndex + direction;
 
     if (targetIndex < 0 || targetIndex >= ordered.length) return;
@@ -427,6 +551,7 @@ function SiteManagementPage() {
 
   const handleSettingSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     setError("");
     setNotice("");
 
@@ -449,6 +574,7 @@ function SiteManagementPage() {
       });
 
       setNotice("تنظیمات سایت ذخیره شد.");
+
       await fetchData();
     } catch (requestError) {
       setError(
@@ -463,6 +589,7 @@ function SiteManagementPage() {
 
   const closeSectionModal = () => {
     if (saving) return;
+
     setSectionModalOpen(false);
     setEditingSection(null);
   };
@@ -475,7 +602,9 @@ function SiteManagementPage() {
             <Settings2 size={15} />
             پیکربندی پورتفولیو
           </span>
+
           <h1>مدیریت سایت</h1>
+
           <p>بخش‌های صفحه اصلی، ترجمه‌ها و تنظیمات عمومی سایت را مدیریت کن.</p>
         </div>
 
@@ -492,6 +621,7 @@ function SiteManagementPage() {
       {notice && (
         <div className="site-management-notice">
           <span>{notice}</span>
+
           <button type="button" onClick={() => setNotice("")} aria-label="بستن">
             <X size={16} />
           </button>
@@ -501,6 +631,7 @@ function SiteManagementPage() {
       {error && !sectionModalOpen && (
         <div className="site-management-error">
           <span>{error}</span>
+
           <button type="button" onClick={() => setError("")} aria-label="بستن">
             <X size={16} />
           </button>
@@ -554,6 +685,7 @@ function SiteManagementPage() {
             <div className="site-management-state">
               <Layers3 size={28} />
               <strong>هنوز بخشی ثبت نشده است.</strong>
+
               <button
                 type="button"
                 className="site-management-primary"
@@ -581,6 +713,7 @@ function SiteManagementPage() {
                       <div className="site-section-info">
                         <div className="site-section-title">
                           <h3>{fa?.title || section.key}</h3>
+
                           <span
                             className={
                               section.enabled
@@ -614,6 +747,7 @@ function SiteManagementPage() {
                           onClick={() => void moveSection(section, -1)}>
                           <span>↑</span>
                         </button>
+
                         <button
                           type="button"
                           title="انتقال به پایین"
@@ -622,6 +756,7 @@ function SiteManagementPage() {
                           onClick={() => void moveSection(section, 1)}>
                           <span>↓</span>
                         </button>
+
                         <button
                           type="button"
                           title={section.enabled ? "غیرفعال کردن" : "فعال کردن"}
@@ -635,6 +770,7 @@ function SiteManagementPage() {
                             <EyeOff size={17} />
                           )}
                         </button>
+
                         <button
                           type="button"
                           className="edit"
@@ -652,6 +788,7 @@ function SiteManagementPage() {
         <div className="site-settings-layout">
           <aside className="site-settings-sidebar">
             <h2>دسته‌بندی تنظیمات</h2>
+
             {SETTING_KEYS.map((item) => (
               <button
                 type="button"
@@ -672,13 +809,16 @@ function SiteManagementPage() {
                   {SETTING_KEYS.find((item) => item.value === selectedSetting)
                     ?.label ?? selectedSetting}
                 </h2>
+
                 <p>مقادیر JSON و ترجمه‌های این تنظیم را ویرایش کن.</p>
               </div>
+
               <FileJson size={22} />
             </div>
 
             <label className="site-json-field">
               <span>مقدار اصلی (JSON)</span>
+
               <textarea
                 dir="ltr"
                 spellCheck={false}
@@ -696,6 +836,7 @@ function SiteManagementPage() {
               {LANGUAGES.map((language) => (
                 <label className="site-json-field" key={language.value}>
                   <span>مقدار ترجمه - {language.label}</span>
+
                   <textarea
                     dir="ltr"
                     spellCheck={false}
@@ -731,7 +872,9 @@ function SiteManagementPage() {
         <div
           className="site-modal-backdrop"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeSectionModal();
+            if (event.target === event.currentTarget) {
+              closeSectionModal();
+            }
           }}>
           <section
             className="site-modal"
@@ -744,11 +887,14 @@ function SiteManagementPage() {
                   <Layers3 size={14} />
                   ساختار صفحه اصلی
                 </span>
+
                 <h2 id="site-modal-title">
                   {editingSection ? "ویرایش بخش" : "ایجاد بخش جدید"}
                 </h2>
+
                 <p>اطلاعات عمومی و ترجمه‌های بخش را مدیریت کن.</p>
               </div>
+
               <button
                 type="button"
                 onClick={closeSectionModal}
@@ -762,6 +908,7 @@ function SiteManagementPage() {
                 {error && (
                   <div className="site-management-error">
                     <span>{error}</span>
+
                     <button
                       type="button"
                       onClick={() => setError("")}
@@ -774,6 +921,7 @@ function SiteManagementPage() {
                 <div className="site-form-grid">
                   <label className="site-form-field">
                     <span>کلید یکتا *</span>
+
                     <input
                       dir="ltr"
                       value={sectionForm.key}
@@ -791,8 +939,9 @@ function SiteManagementPage() {
 
                   <label className="site-form-field">
                     <span>نوع بخش *</span>
-                    <input
-                      dir="ltr"
+
+                    <select
+                      dir="rtl"
                       value={sectionForm.type}
                       onChange={(event) =>
                         setSectionForm((current) => ({
@@ -800,13 +949,31 @@ function SiteManagementPage() {
                           type: event.target.value,
                         }))
                       }
-                      placeholder="مثلاً hero"
-                      required
-                    />
+                      required>
+                      <option value="" disabled>
+                        انتخاب نوع بخش
+                      </option>
+
+                      {!SECTION_TYPES.some(
+                        (item) => item.value === sectionForm.type,
+                      ) &&
+                        sectionForm.type && (
+                          <option value={sectionForm.type}>
+                            {sectionForm.type}
+                          </option>
+                        )}
+
+                      {SECTION_TYPES.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
                   </label>
 
                   <label className="site-form-field">
                     <span>ترتیب نمایش</span>
+
                     <input
                       type="number"
                       min={0}
@@ -832,24 +999,189 @@ function SiteManagementPage() {
                         }))
                       }
                     />
+
                     <span>نمایش این بخش در سایت فعال باشد</span>
                   </label>
                 </div>
 
-                <label className="site-json-field">
-                  <span>تنظیمات اختصاصی بخش (JSON)</span>
-                  <textarea
-                    dir="ltr"
-                    spellCheck={false}
-                    value={sectionForm.settings}
-                    onChange={(event) =>
-                      setSectionForm((current) => ({
-                        ...current,
-                        settings: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
+                <section className="site-editor-section">
+                  <div className="site-editor-section-heading">
+                    <div>
+                      <h3>تنظیمات نمایش</h3>
+                      <p>چیدمان و ظاهر این بخش را مشخص کن.</p>
+                    </div>
+
+                    <Settings2 size={20} />
+                  </div>
+
+                  <div className="site-section-settings-grid">
+                    <label className="site-form-field">
+                      <span>نوع چیدمان</span>
+
+                      <select
+                        value={getSettingValue(
+                          sectionForm.settings,
+                          "layout",
+                          "grid",
+                        )}
+                        onChange={(event) =>
+                          updateSettingField("layout", event.target.value)
+                        }>
+                        <option value="grid">شبکه‌ای</option>
+                        <option value="list">لیستی</option>
+                        <option value="cards">کارت‌ها</option>
+                        <option value="slider">اسلایدری</option>
+                        <option value="centered">وسط‌چین</option>
+                        <option value="split">دو ستونه</option>
+                      </select>
+                    </label>
+
+                    <label className="site-form-field">
+                      <span>تعداد ستون‌ها</span>
+
+                      <select
+                        value={getSettingValue(
+                          sectionForm.settings,
+                          "columns",
+                          "3",
+                        )}
+                        onChange={(event) =>
+                          updateSettingField(
+                            "columns",
+                            Number(event.target.value),
+                          )
+                        }>
+                        <option value="1">یک ستون</option>
+                        <option value="2">دو ستون</option>
+                        <option value="3">سه ستون</option>
+                        <option value="4">چهار ستون</option>
+                      </select>
+                    </label>
+
+                    <label className="site-form-field">
+                      <span>فاصله عمودی بخش (px)</span>
+
+                      <input
+                        type="number"
+                        min={0}
+                        max={300}
+                        value={getSettingValue(
+                          sectionForm.settings,
+                          "verticalSpacing",
+                          "80",
+                        )}
+                        onChange={(event) =>
+                          updateSettingField(
+                            "verticalSpacing",
+                            Number(event.target.value),
+                          )
+                        }
+                      />
+                    </label>
+
+                    <label className="site-form-field">
+                      <span>فاصله بین آیتم‌ها (px)</span>
+
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={getSettingValue(
+                          sectionForm.settings,
+                          "gap",
+                          "24",
+                        )}
+                        onChange={(event) =>
+                          updateSettingField("gap", Number(event.target.value))
+                        }
+                      />
+                    </label>
+
+                    <label className="site-form-field">
+                      <span>رنگ پس‌زمینه</span>
+
+                      <div className="site-color-control">
+                        <input
+                          type="color"
+                          value={getSettingValue(
+                            sectionForm.settings,
+                            "backgroundColor",
+                            "#171522",
+                          )}
+                          onChange={(event) =>
+                            updateSettingField(
+                              "backgroundColor",
+                              event.target.value,
+                            )
+                          }
+                        />
+
+                        <code>
+                          {getSettingValue(
+                            sectionForm.settings,
+                            "backgroundColor",
+                            "#171522",
+                          )}
+                        </code>
+                      </div>
+                    </label>
+
+                    <label className="site-form-field">
+                      <span>تصویر بخش (URL)</span>
+
+                      <input
+                        dir="ltr"
+                        type="url"
+                        value={getSettingValue(
+                          sectionForm.settings,
+                          "imageUrl",
+                          "",
+                        )}
+                        onChange={(event) =>
+                          updateSettingField("imageUrl", event.target.value)
+                        }
+                        placeholder="https://example.com/image.webp"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="site-section-checkboxes">
+                    {[
+                      {
+                        key: "showTitle",
+                        label: "نمایش عنوان",
+                      },
+                      {
+                        key: "showSubtitle",
+                        label: "نمایش زیرعنوان",
+                      },
+                      {
+                        key: "showDescription",
+                        label: "نمایش توضیحات",
+                      },
+                      {
+                        key: "showImage",
+                        label: "نمایش تصویر",
+                      },
+                    ].map((item) => (
+                      <label key={item.key}>
+                        <input
+                          type="checkbox"
+                          checked={getSettingBoolean(
+                            sectionForm.settings,
+                            item.key,
+                            true,
+                          )}
+                          onChange={(event) =>
+                            updateSettingField(item.key, event.target.checked)
+                          }
+                        />
+
+                        <span>{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </section>
 
                 <div className="site-translation-editor">
                   <div className="site-translation-heading">
@@ -869,6 +1201,7 @@ function SiteManagementPage() {
                         }
                         onClick={() => setActiveLanguage(language.value)}>
                         {language.label}
+
                         {sectionForm.translations[
                           language.value
                         ].title.trim() && <span />}
@@ -884,6 +1217,7 @@ function SiteManagementPage() {
                     }>
                     <label className="site-form-field">
                       <span>عنوان</span>
+
                       <input
                         value={sectionForm.translations[activeLanguage].title}
                         onChange={(event) =>
@@ -895,6 +1229,7 @@ function SiteManagementPage() {
 
                     <label className="site-form-field">
                       <span>زیرعنوان</span>
+
                       <input
                         value={
                           sectionForm.translations[activeLanguage].subtitle
@@ -908,6 +1243,7 @@ function SiteManagementPage() {
 
                     <label className="site-form-field">
                       <span>توضیحات</span>
+
                       <textarea
                         rows={3}
                         value={
@@ -920,19 +1256,117 @@ function SiteManagementPage() {
                       />
                     </label>
 
-                    <label className="site-json-field">
-                      <span>محتوای تکمیلی (JSON)</span>
-                      <textarea
-                        dir="ltr"
-                        spellCheck={false}
-                        value={sectionForm.translations[activeLanguage].content}
-                        onChange={(event) =>
-                          updateTranslation("content", event.target.value)
-                        }
-                      />
-                    </label>
+                    <section className="site-editor-section">
+                      <div className="site-editor-section-heading">
+                        <div>
+                          <h3>دکمه‌های بخش</h3>
+                          <p>
+                            متن و مقصد دکمه‌ها را برای زبان انتخاب‌شده تعیین کن.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="site-form-grid">
+                        <label className="site-form-field">
+                          <span>متن دکمه اصلی</span>
+
+                          <input
+                            value={getTranslationContentValue(
+                              sectionForm.translations[activeLanguage].content,
+                              "primaryButtonLabel",
+                            )}
+                            onChange={(event) =>
+                              updateContentField(
+                                "primaryButtonLabel",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="مشاهده پروژه‌ها"
+                          />
+                        </label>
+
+                        <label className="site-form-field">
+                          <span>لینک دکمه اصلی</span>
+
+                          <input
+                            dir="ltr"
+                            value={getTranslationContentValue(
+                              sectionForm.translations[activeLanguage].content,
+                              "primaryButtonUrl",
+                            )}
+                            onChange={(event) =>
+                              updateContentField(
+                                "primaryButtonUrl",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="/projects"
+                          />
+                        </label>
+
+                        <label className="site-form-field">
+                          <span>متن دکمه دوم</span>
+
+                          <input
+                            value={getTranslationContentValue(
+                              sectionForm.translations[activeLanguage].content,
+                              "secondaryButtonLabel",
+                            )}
+                            onChange={(event) =>
+                              updateContentField(
+                                "secondaryButtonLabel",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="ارتباط با من"
+                          />
+                        </label>
+
+                        <label className="site-form-field">
+                          <span>لینک دکمه دوم</span>
+
+                          <input
+                            dir="ltr"
+                            value={getTranslationContentValue(
+                              sectionForm.translations[activeLanguage].content,
+                              "secondaryButtonUrl",
+                            )}
+                            onChange={(event) =>
+                              updateContentField(
+                                "secondaryButtonUrl",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="/contact"
+                          />
+                        </label>
+                      </div>
+                    </section>
                   </div>
                 </div>
+
+                <details className="site-advanced-settings">
+                  <summary>
+                    <FileJson size={17} />
+                    تنظیمات پیشرفته JSON
+                  </summary>
+
+                  <label className="site-json-field">
+                    <span>تنظیمات اختصاصی بخش</span>
+
+                    <textarea
+                      dir="ltr"
+                      spellCheck={false}
+                      value={sectionForm.settings}
+                      onChange={(event) =>
+                        setSectionForm((current) => ({
+                          ...current,
+                          settings: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </details>
               </div>
 
               <footer className="site-modal-footer">
@@ -943,11 +1377,13 @@ function SiteManagementPage() {
                   disabled={saving}>
                   انصراف
                 </button>
+
                 <button
                   type="submit"
                   className="site-management-primary"
                   disabled={saving}>
                   <Save size={16} />
+
                   {saving
                     ? "در حال ذخیره..."
                     : editingSection
