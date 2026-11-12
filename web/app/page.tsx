@@ -1,14 +1,18 @@
-import { Suspense } from "react";
+﻿import { Suspense } from "react";
 
 import Header from "@/components/layout/Header";
 import Hero from "@/components/sections/Hero";
 import About from "@/components/sections/About";
 import Projects from "@/components/sections/Projects";
+import Skills from "@/components/sections/Skills";
+import LanguageSkills from "@/components/sections/LanguageSkills";
 
 import {
   getHomeSections,
   getProfile,
   getProjects,
+  getSkills,
+  getLanguageSkills,
   getSectionTranslation,
   getSocialLinks,
   type HomeSection,
@@ -36,9 +40,10 @@ function HomeSectionRenderer({
   return (
     <section
       id={section.key}
-      className={`min-h-[300px] px-5 py-24 text-center ${
+      className={`min-h-[300px] scroll-mt-24 px-5 py-24 text-center ${
         index % 2 === 1 ? "bg-background-secondary" : "bg-background"
-      }`}>
+      }`}
+    >
       <div className="mx-auto max-w-3xl">
         <h2 className="text-3xl font-bold text-foreground">
           {content?.title || section.key}
@@ -62,13 +67,21 @@ function HomeSectionRenderer({
 
 // Fetches homepage content and profile data in parallel.
 async function HomeContent() {
-  const [sectionsResponse, socialResponse, profile, projectsResponse] =
-    await Promise.all([
-      getHomeSections("fa"),
-      getSocialLinks(),
-      getProfile("fa"),
-      getProjects("fa", 1, 50),
-    ]);
+  const [
+    sectionsResponse,
+    socialResponse,
+    profile,
+    projectsResponse,
+    skillsResponse,
+    languagesResponse,
+  ] = await Promise.all([
+    getHomeSections("fa"),
+    getSocialLinks(),
+    getProfile("fa"),
+    getProjects("fa", 1, 50),
+    getSkills("fa"),
+    getLanguageSkills("fa"),
+  ]);
 
   // Keeps enabled sections in their configured display order.
   const sections = sectionsResponse
@@ -102,11 +115,9 @@ async function HomeContent() {
 
   return (
     <>
-      {/* Renders the header with CMS-managed navigation. */}
       <Header navigation={navigation} contactHref={contactHref} />
 
       <main>
-        {/* Renders the hero section with CMS content and social links. */}
         {heroSection && (
           <Hero
             content={getSectionTranslation(heroSection, "fa")}
@@ -114,7 +125,6 @@ async function HomeContent() {
           />
         )}
 
-        {/* Renders dedicated and generic sections in CMS order. */}
         {otherSections.map((section, index) => {
           if (section.key === "about" || section.type === "about") {
             return (
@@ -134,6 +144,33 @@ async function HomeContent() {
                 projects={projectsResponse.data}
                 content={getSectionTranslation(section, "fa")}
                 index={index}
+              />
+            );
+          }
+
+          if (section.key === "skills" || section.type === "skills") {
+            return (
+              <Skills
+                key={section.id}
+                skills={skillsResponse}
+                content={getSectionTranslation(section, "fa")}
+                index={index}
+                sectionId={section.key}
+              />
+            );
+          }
+
+          if (
+            ["language-skills", "languages"].includes(section.key) ||
+            ["language-skills", "languages"].includes(section.type)
+          ) {
+            return (
+              <LanguageSkills
+                key={section.id}
+                languages={languagesResponse}
+                content={getSectionTranslation(section, "fa")}
+                index={index}
+                sectionId={section.key}
               />
             );
           }
