@@ -101,6 +101,47 @@ export interface SocialLink {
   sortOrder: number;
 }
 
+// Defines a translated skill.
+export interface SkillTranslation {
+  id: string;
+  skillId: string;
+  language: string;
+  title: string;
+  description: string | null;
+}
+
+// Defines a technical skill returned by the API.
+export interface Skill {
+  id: string;
+  name: string;
+  category: string;
+  icon: string | null;
+  level: number;
+  featured: boolean;
+  enabled: boolean;
+  sortOrder: number;
+  translations: SkillTranslation[];
+}
+
+// Defines a translated language skill.
+export interface LanguageSkillTranslation {
+  id: string;
+  languageSkillId: string;
+  language: string;
+  title: string;
+  description: string | null;
+}
+
+// Defines a spoken language and its proficiency.
+export interface LanguageSkill {
+  id: string;
+  name: string;
+  level: string;
+  proficiency: number;
+  enabled: boolean;
+  sortOrder: number;
+  translations: LanguageSkillTranslation[];
+}
 async function fetchApi<T>(endpoint: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     cache: "no-store",
@@ -118,6 +159,19 @@ async function fetchApi<T>(endpoint: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+// Fetches technical skills in the requested language.
+export async function getSkills(language = "fa"): Promise<Skill[]> {
+  return fetchApi<Skill[]>(`/skills?lang=${encodeURIComponent(language)}`);
+}
+
+// Fetches spoken language skills in the requested language.
+export async function getLanguageSkills(
+  language = "fa",
+): Promise<LanguageSkill[]> {
+  return fetchApi<LanguageSkill[]>(
+    `/language-skills?lang=${encodeURIComponent(language)}`,
+  );
+}
 export async function getHomeSections(language = "fa"): Promise<HomeSection[]> {
   // Fetches homepage sections as a direct array from the API.
   return fetchApi<HomeSection[]>(
