@@ -269,3 +269,132 @@ export async function getProjectBySlug(
 
   return response.json() as Promise<Project>;
 }
+
+// Defines the paginated API response.
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+// Defines translated professional experience content.
+export interface ExperienceTranslation {
+  id: string;
+  experienceId: string;
+  language: string;
+  title: string;
+  description: string;
+}
+
+// Defines a professional experience entry.
+export interface Experience {
+  id: string;
+  organization: string;
+  position: string;
+  startDate: string;
+  endDate: string | null;
+  current: boolean;
+  enabled: boolean;
+  sortOrder: number;
+  translations: ExperienceTranslation[];
+}
+
+// Defines translated blog article content.
+export interface BlogTranslation {
+  id: string;
+  articleId: string;
+  language: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  content: unknown;
+  metaTitle: string | null;
+  metaDescription: string | null;
+}
+
+// Defines a blog category or tag.
+export interface BlogTaxonomy {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+// Defines a published blog article.
+export interface BlogArticle {
+  id: string;
+  status: string;
+  featured: boolean;
+  allowComments: boolean;
+  coverMediaId: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  translations: BlogTranslation[];
+  coverMedia: {
+    id: string;
+    type: string;
+    url: string;
+    originalName: string;
+    alt: string | null;
+    mimeType: string;
+    sizeBytes: number;
+    width: number | null;
+    height: number | null;
+  } | null;
+  categories: Array<{
+    category: BlogTaxonomy;
+  }>;
+  tags: Array<{
+    tag: BlogTaxonomy;
+  }>;
+}
+
+// Converts API media paths into absolute URLs.
+export function resolveMediaUrl(
+  path: string | null | undefined,
+): string | null {
+  if (!path) return null;
+
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  const apiOrigin = new URL(API_BASE_URL).origin;
+  return `${apiOrigin}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+// Fetches professional experience entries.
+export async function getExperiences(
+  language = "fa",
+  page = 1,
+  limit = 20,
+): Promise<PaginatedResponse<Experience>> {
+  return fetchApi<PaginatedResponse<Experience>>(
+    `/experience?lang=${encodeURIComponent(language)}&page=${page}&limit=${limit}`,
+  );
+}
+
+// Fetches published blog articles.
+export async function getBlogArticles(
+  language = "fa",
+  page = 1,
+  limit = 6,
+): Promise<PaginatedResponse<BlogArticle>> {
+  return fetchApi<PaginatedResponse<BlogArticle>>(
+    `/blog?lang=${encodeURIComponent(language)}&page=${page}&limit=${limit}`,
+  );
+}
+
+// Returns the translation matching the requested language.
+export function getBlogTranslation(
+  article: BlogArticle,
+  language = "fa",
+): BlogTranslation | undefined {
+  return article.translations.find(
+    (translation) => translation.language === language,
+  );
+}
