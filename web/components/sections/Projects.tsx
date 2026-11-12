@@ -5,6 +5,8 @@ import { siGithub } from "simple-icons";
 
 import type { HomeSectionTranslation, Project } from "@/lib/api";
 
+import Link from "next/link";
+
 interface ProjectsProps {
   projects: Project[];
   content?: HomeSectionTranslation;
@@ -128,7 +130,9 @@ export default function Projects({
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h3 className="text-xl font-bold text-foreground transition group-hover:text-primary-light sm:text-2xl">
-                          {translation.title}
+                          <Link href={`/projects/${project.slug}`}>
+                            {translation.title}
+                          </Link>
                         </h3>
 
                         {translation.role && (
@@ -164,6 +168,13 @@ export default function Projects({
 
                     {/* Renders only the external links available for this project. */}
                     <div className="mt-auto flex flex-wrap items-center gap-3 pt-7">
+                      <Link
+                        href={`/projects/${project.slug}`}
+                        className="inline-flex items-center gap-2 rounded-full border border-primary/40 px-5 py-2.5 text-xs font-semibold text-primary-light transition hover:-translate-y-1 hover:bg-primary/10">
+                        جزئیات پروژه
+                        <ArrowUpRight size={15} />
+                      </Link>
+
                       {project.demoUrl && (
                         <a
                           href={project.demoUrl}
