@@ -3,10 +3,12 @@ import { Suspense } from "react";
 import Header from "@/components/layout/Header";
 import Hero from "@/components/sections/Hero";
 import About from "@/components/sections/About";
+import Projects from "@/components/sections/Projects";
 
 import {
   getHomeSections,
   getProfile,
+  getProjects,
   getSectionTranslation,
   getSocialLinks,
   type HomeSection,
@@ -60,11 +62,13 @@ function HomeSectionRenderer({
 
 // Fetches homepage content and profile data in parallel.
 async function HomeContent() {
-  const [sectionsResponse, socialResponse, profile] = await Promise.all([
-    getHomeSections("fa"),
-    getSocialLinks(),
-    getProfile("fa"),
-  ]);
+  const [sectionsResponse, socialResponse, profile, projectsResponse] =
+    await Promise.all([
+      getHomeSections("fa"),
+      getSocialLinks(),
+      getProfile("fa"),
+      getProjects("fa", 1, 50),
+    ]);
 
   // Keeps enabled sections in their configured display order.
   const sections = sectionsResponse
@@ -117,6 +121,17 @@ async function HomeContent() {
               <About
                 key={section.id}
                 profile={profile}
+                content={getSectionTranslation(section, "fa")}
+                index={index}
+              />
+            );
+          }
+
+          if (section.key === "projects" || section.type === "projects") {
+            return (
+              <Projects
+                key={section.id}
+                projects={projectsResponse.data}
                 content={getSectionTranslation(section, "fa")}
                 index={index}
               />

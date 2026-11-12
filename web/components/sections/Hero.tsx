@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeft, Download, Globe, Mail } from "lucide-react";
+import { ArrowDown, ArrowLeft, Download, Globe } from "lucide-react";
 
 import { siGithub } from "simple-icons";
 
