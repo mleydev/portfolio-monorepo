@@ -20,7 +20,7 @@ export default function Projects({
   return (
     <section
       id="projects"
-      className={`relative overflow-hidden px-5 py-24 sm:px-8 lg:px-12 ${
+      className={`relative scroll-mt-24 overflow-hidden px-5 py-24 sm:px-8 lg:px-12 ${
         index % 2 === 1 ? "bg-background-secondary" : "bg-background"
       }`}>
       {/* Adds subtle background decoration. */}
