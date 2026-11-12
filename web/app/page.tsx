@@ -2,9 +2,11 @@ import { Suspense } from "react";
 
 import Header from "@/components/layout/Header";
 import Hero from "@/components/sections/Hero";
+import About from "@/components/sections/About";
 
 import {
   getHomeSections,
+  getProfile,
   getSectionTranslation,
   getSocialLinks,
   type HomeSection,
@@ -19,7 +21,7 @@ function SectionFallback() {
   );
 }
 
-// Renders a generic homepage section using CMS translations.
+// Renders generic sections that do not have dedicated components.
 function HomeSectionRenderer({
   section,
   index,
@@ -28,11 +30,6 @@ function HomeSectionRenderer({
   index: number;
 }) {
   const content = getSectionTranslation(section, "fa");
-
-  // The hero section has its own dedicated component.
-  if (section.key === "hero" || section.type === "hero") {
-    return null;
-  }
 
   return (
     <section
@@ -61,11 +58,12 @@ function HomeSectionRenderer({
   );
 }
 
-// Fetches homepage sections and social links from the backend.
+// Fetches homepage content and profile data in parallel.
 async function HomeContent() {
-  const [sectionsResponse, socialResponse] = await Promise.all([
+  const [sectionsResponse, socialResponse, profile] = await Promise.all([
     getHomeSections("fa"),
     getSocialLinks(),
+    getProfile("fa"),
   ]);
 
   // Keeps enabled sections in their configured display order.
@@ -73,7 +71,7 @@ async function HomeContent() {
     .filter((section) => section.enabled)
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
-  // Separates the hero section from the remaining homepage sections.
+  // Separates the hero section from the remaining sections.
   const heroSection = sections.find(
     (section) => section.key === "hero" || section.type === "hero",
   );
@@ -82,35 +80,67 @@ async function HomeContent() {
     (section) => section.id !== heroSection?.id,
   );
 
+  // Builds navigation links from enabled CMS sections.
+  const navigation = [
+    { label: "خانه", href: "#home" },
+    ...otherSections.map((section) => ({
+      label: getSectionTranslation(section, "fa")?.title || section.key,
+      href: `#${section.key}`,
+    })),
+  ];
+
+  // Resolves the contact link only when a contact section is enabled.
+  const contactSection = otherSections.find(
+    (section) => section.key === "contact" || section.type === "contact",
+  );
+
+  const contactHref = contactSection ? `#${contactSection.key}` : undefined;
+
   return (
     <>
-      {/* Renders the hero section with CMS content and social links. */}
-      {heroSection && (
-        <Hero
-          content={getSectionTranslation(heroSection, "fa")}
-          socialLinks={socialResponse}
-        />
-      )}
+      {/* Renders the header with CMS-managed navigation. */}
+      <Header navigation={navigation} contactHref={contactHref} />
 
-      {/* Renders all remaining enabled sections dynamically. */}
-      {otherSections.map((section, index) => (
-        <HomeSectionRenderer key={section.id} section={section} index={index} />
-      ))}
+      <main>
+        {/* Renders the hero section with CMS content and social links. */}
+        {heroSection && (
+          <Hero
+            content={getSectionTranslation(heroSection, "fa")}
+            socialLinks={socialResponse}
+          />
+        )}
+
+        {/* Renders dedicated and generic sections in CMS order. */}
+        {otherSections.map((section, index) => {
+          if (section.key === "about" || section.type === "about") {
+            return (
+              <About
+                key={section.id}
+                profile={profile}
+                content={getSectionTranslation(section, "fa")}
+                index={index}
+              />
+            );
+          }
+
+          return (
+            <HomeSectionRenderer
+              key={section.id}
+              section={section}
+              index={index}
+            />
+          );
+        })}
+      </main>
     </>
   );
 }
 
-// Defines the homepage layout and loading boundary.
+// Defines the homepage loading boundary.
 export default function HomePage() {
   return (
-    <>
-      <Header />
-
-      <main>
-        <Suspense fallback={<SectionFallback />}>
-          <HomeContent />
-        </Suspense>
-      </main>
-    </>
+    <Suspense fallback={<SectionFallback />}>
+      <HomeContent />
+    </Suspense>
   );
 }

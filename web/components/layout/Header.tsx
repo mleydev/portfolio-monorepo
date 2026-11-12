@@ -3,28 +3,30 @@
 import { useState } from "react";
 import { ArrowUpRight, Menu, Moon, Sun, X } from "lucide-react";
 
-const navigation = [
-  { label: "خانه", href: "#home" },
-  { label: "درباره من", href: "#about" },
-  { label: "مهارت‌ها", href: "#skills" },
-  { label: "تجربه کاری", href: "#experience" },
-  { label: "پروژه‌ها", href: "#projects" },
-  { label: "وبلاگ", href: "#blog" },
-  { label: "تماس", href: "#contact" },
-];
+// Defines the navigation item structure received from the CMS.
+interface NavigationItem {
+  label: string;
+  href: string;
+}
 
-export default function Header() {
+// Defines the navigation and contact properties.
+interface HeaderProps {
+  navigation: NavigationItem[];
+  contactHref?: string;
+}
+
+export default function Header({ navigation, contactHref }: HeaderProps) {
   const [isDark, setIsDark] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // Toggles the active color theme.
   function toggleTheme() {
-    const nextTheme = isDark ? "light" : "dark";
+    const nextIsDark = !isDark;
 
-    document.documentElement.classList.toggle("light", nextTheme === "light");
+    document.documentElement.classList.toggle("light", !nextIsDark);
 
-    setIsDark(nextTheme === "dark");
+    setIsDark(nextIsDark);
   }
-
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between px-5 sm:px-8 lg:px-12">
@@ -41,6 +43,7 @@ export default function Header() {
           </span>
         </a>
 
+        {/* Renders navigation items received from the CMS. */}
         <nav className="hidden items-center gap-5 xl:flex">
           {navigation.map((item, index) => (
             <a
@@ -59,6 +62,7 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Keeps the language selector available for future localization. */}
           <div className="hidden items-center rounded-full border border-border bg-surface p-1 sm:flex">
             {["FA", "EN", "AR"].map((language) => (
               <button
@@ -73,6 +77,7 @@ export default function Header() {
             ))}
           </div>
 
+          {/* Preserves the existing theme toggle behavior. */}
           <button
             type="button"
             onClick={toggleTheme}
@@ -81,13 +86,17 @@ export default function Header() {
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
 
-          <a
-            href="#contact"
-            className="hidden items-center gap-1 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-light lg:flex">
-            همکاری با من
-            <ArrowUpRight size={14} />
-          </a>
+          {/* Displays the contact action only when its CMS section exists. */}
+          {contactHref && (
+            <a
+              href={contactHref}
+              className="hidden items-center gap-1 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-light lg:flex">
+              همکاری با من
+              <ArrowUpRight size={14} />
+            </a>
+          )}
 
+          {/* Preserves the responsive mobile navigation toggle. */}
           <button
             type="button"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -99,6 +108,7 @@ export default function Header() {
         </div>
       </div>
 
+      {/* Renders the same CMS navigation in the mobile menu. */}
       {isMenuOpen && (
         <nav className="border-t border-border bg-background px-5 py-4 xl:hidden">
           <div className="mx-auto flex max-w-[1440px] flex-col gap-1">

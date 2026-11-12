@@ -86,9 +86,40 @@ export async function getSiteSettings(language = "fa"): Promise<SiteSettings> {
   );
 }
 
+// Fetches and validates social links from the API.
 export async function getSocialLinks(): Promise<SocialLink[]> {
-  // Fetches enabled social links as a direct array from the API.
-  return fetchApi<SocialLink[]>("/site/social-links");
+  const response = await fetchApi<SocialLink | null>("/site/social-links");
+
+  // Normalizes the API response and removes invalid entries.
+  return response?.id ? [response] : [];
+}
+
+// Defines the translated public profile content.
+export interface ProfileTranslation {
+  id: string;
+  language: string;
+  fullName: string;
+  role: string;
+  bio: string;
+  profileId: string;
+}
+
+// Defines the public profile returned by the API.
+export interface Profile {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  location: string | null;
+  avatar: string | null;
+  resumeUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+  translations: ProfileTranslation[];
+}
+
+// Fetches the public profile in the requested language.
+export async function getProfile(language = "fa"): Promise<Profile> {
+  return fetchApi<Profile>(`/profile?lang=${encodeURIComponent(language)}`);
 }
 
 // Returns the translation matching the requested language.

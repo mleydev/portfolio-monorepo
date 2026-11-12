@@ -131,26 +131,22 @@ export default function Hero({ content, socialLinks }: HeroProps) {
           </div>
 
           {/* Renders enabled social links retrieved from the API. */}
-          {socialLinks.length > 0 && (
-            <div className="mt-9 flex items-center justify-center gap-5 lg:justify-start">
-              {socialLinks.map((link) => {
-                const isExternal = /^https?:\/\//i.test(link.url);
+          {socialLinks.map((link, index) => {
+            const isExternal = /^https?:\/\//i.test(link.url);
 
-                return (
-                  <a
-                    key={link.id}
-                    href={link.url}
-                    target={isExternal ? "_blank" : undefined}
-                    rel={isExternal ? "noopener noreferrer" : undefined}
-                    aria-label={link.label}
-                    title={link.label}
-                    className="text-muted transition hover:-translate-y-1 hover:text-primary-light">
-                    <SocialIcon platform={link.platform} icon={link.icon} />
-                  </a>
-                );
-              })}
-            </div>
-          )}
+            return (
+              <a
+                key={`${link.platform}-${link.id || index}`}
+                href={link.url}
+                target={isExternal ? "_blank" : undefined}
+                rel={isExternal ? "noopener noreferrer" : undefined}
+                aria-label={link.label}
+                title={link.label}
+                className="text-muted transition hover:-translate-y-1 hover:text-primary-light">
+                <SocialIcon platform={link.platform} icon={link.icon} />
+              </a>
+            );
+          })}
         </div>
 
         {/* Displays the visual identity of the portfolio. */}
