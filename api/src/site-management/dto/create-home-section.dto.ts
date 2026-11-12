@@ -18,15 +18,15 @@ class HomeSectionTranslationDto {
 
   @IsOptional()
   @IsString()
-  title?: string;
+  title?: string | null;
 
   @IsOptional()
   @IsString()
-  subtitle?: string;
+  subtitle?: string | null;
 
   @IsOptional()
   @IsString()
-  description?: string;
+  description?: string | null;
 
   @IsOptional()
   @IsObject()
