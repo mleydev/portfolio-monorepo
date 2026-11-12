@@ -6,6 +6,8 @@ import About from "@/components/sections/About";
 import Projects from "@/components/sections/Projects";
 import Skills from "@/components/sections/Skills";
 import LanguageSkills from "@/components/sections/LanguageSkills";
+import Experience from "@/components/sections/Experience";
+import Blog from "@/components/sections/Blog";
 
 import {
   getHomeSections,
@@ -13,6 +15,8 @@ import {
   getProjects,
   getSkills,
   getLanguageSkills,
+  getExperiences,
+  getBlogArticles,
   getSectionTranslation,
   getSocialLinks,
   type HomeSection,
@@ -42,8 +46,7 @@ function HomeSectionRenderer({
       id={section.key}
       className={`min-h-[300px] scroll-mt-24 px-5 py-24 text-center ${
         index % 2 === 1 ? "bg-background-secondary" : "bg-background"
-      }`}
-    >
+      }`}>
       <div className="mx-auto max-w-3xl">
         <h2 className="text-3xl font-bold text-foreground">
           {content?.title || section.key}
@@ -74,6 +77,8 @@ async function HomeContent() {
     projectsResponse,
     skillsResponse,
     languagesResponse,
+    experiencesResponse,
+    blogResponse,
   ] = await Promise.all([
     getHomeSections("fa"),
     getSocialLinks(),
@@ -81,6 +86,8 @@ async function HomeContent() {
     getProjects("fa", 1, 50),
     getSkills("fa"),
     getLanguageSkills("fa"),
+    getExperiences("fa", 1, 50),
+    getBlogArticles("fa", 1, 6),
   ]);
 
   // Keeps enabled sections in their configured display order.
@@ -126,12 +133,14 @@ async function HomeContent() {
         )}
 
         {otherSections.map((section, index) => {
+          const content = getSectionTranslation(section, "fa");
+
           if (section.key === "about" || section.type === "about") {
             return (
               <About
                 key={section.id}
                 profile={profile}
-                content={getSectionTranslation(section, "fa")}
+                content={content}
                 index={index}
               />
             );
@@ -142,7 +151,7 @@ async function HomeContent() {
               <Projects
                 key={section.id}
                 projects={projectsResponse.data}
-                content={getSectionTranslation(section, "fa")}
+                content={content}
                 index={index}
               />
             );
@@ -153,7 +162,7 @@ async function HomeContent() {
               <Skills
                 key={section.id}
                 skills={skillsResponse}
-                content={getSectionTranslation(section, "fa")}
+                content={content}
                 index={index}
                 sectionId={section.key}
               />
@@ -168,7 +177,31 @@ async function HomeContent() {
               <LanguageSkills
                 key={section.id}
                 languages={languagesResponse}
-                content={getSectionTranslation(section, "fa")}
+                content={content}
+                index={index}
+                sectionId={section.key}
+              />
+            );
+          }
+
+          if (section.key === "experience" || section.type === "experience") {
+            return (
+              <Experience
+                key={section.id}
+                experiences={experiencesResponse.data}
+                content={content}
+                index={index}
+                sectionId={section.key}
+              />
+            );
+          }
+
+          if (section.key === "blog" || section.type === "blog") {
+            return (
+              <Blog
+                key={section.id}
+                articles={blogResponse.data}
+                content={content}
                 index={index}
                 sectionId={section.key}
               />
